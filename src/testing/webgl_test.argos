@@ -1,0 +1,83 @@
+<?xml version="1.0" ?>
+<argos-configuration>
+
+  <!-- ************************* -->
+  <!-- * General configuration * -->
+  <!-- ************************* -->
+  <framework>
+    <experiment length="0.1" ticks_per_second="20" random_seed="1"/>
+  </framework>
+
+  <!-- *************** -->
+  <!-- * Controllers * -->
+  <!-- *************** -->
+  <controllers/>
+
+  <!-- *********************** -->
+  <!-- * Arena configuration * -->
+  <!-- *********************** -->
+  <arena size="0.5, 0.5, 1" center="0, 0, 0.5">
+    <box id="bn" size="0.025,0.475,0.025" movable="false" mass="10">
+      <body position="0.2375,0.0125,0"  orientation="0,0,0" />
+    </box>
+    <box id="be" size="0.475,0.025,0.025" movable="false" mass="10">
+      <body position="0.0125,-0.2375,0"  orientation="0,0,0" />
+    </box>
+    <box id="bs" size="0.025,0.475,0.025" movable="false" mass="10">
+      <body position="-0.2375,-0.0125,0"  orientation="0,0,0" />
+    </box>
+    <box id="bw" size="0.475,0.025,0.025" movable="false" mass="10">
+      <body position="-0.0125,0.2375,0"  orientation="0,0,0" />
+    </box>
+    <distribute>
+      <position method="uniform" min="-0.125,-0.125,0.05" max="0.125,0.125,0.9" />
+      <orientation method="uniform" min="0,0,0" max="360,360,360" />
+      <entity quantity="5" max_trials="100">
+        <box id="box" size="0.01,0.01,0.01" movable="true" mass="0.05"/>
+      </entity>
+    </distribute>
+    <distribute>
+      <position method="uniform" min="-0.125,-0.125,0.05" max="0.125,0.125,0.9" />
+      <orientation method="uniform" min="0,0,0" max="360,360,360" />
+      <entity quantity="5" max_trials="100">
+        <cylinder id="cylinder" height="0.01" radius="0.005" movable="true" mass="0.05"/>
+      </entity>
+    </distribute>
+  </arena>
+
+  <!-- ******************* -->
+  <!-- * Physics engines * -->
+  <!-- ******************* -->
+  <physics_engines>
+    <dynamics3d id="dyn3d" iterations="5">
+      <floor height="0.01"/>
+      <gravity g="9.8" />
+    </dynamics3d>
+  </physics_engines>
+
+  <!-- ********* -->
+  <!-- * Media * -->
+  <!-- ********* -->
+  <media/>
+
+  <!-- ****************** -->
+  <!-- * Visualization * -->
+  <!-- ****************** -->
+  <visualization>
+    <!--qt-opengl>
+      <camera>
+        <placement idx="0" position=" 0,   -1.25,0.5" look_at="0,0,0.05" lens_focal_length="78" />
+        <placement idx="1" position=" 1.25,-1.25,0.6" look_at="0,0,0.05" lens_focal_length="92" />
+        <placement idx="2" position=" 1.25, 0,   0.5" look_at="0,0,0.05" lens_focal_length="78" />
+        <placement idx="3" position=" 1.25, 1.25,0.6" look_at="0,0,0.05" lens_focal_length="92" />
+        <placement idx="4" position=" 0,    1.25,0.5" look_at="0,0,0.05" lens_focal_length="78" />
+        <placement idx="5" position="-1.25, 1.25,0.6" look_at="0,0,0.05" lens_focal_length="92" />
+        <placement idx="6" position="-1.25, 0,   0.5" look_at="0,0,0.05" lens_focal_length="78" />
+        <placement idx="7" position="-1.25,-1.25,0.6" look_at="0,0,0.05" lens_focal_length="92" />
+        <placement idx="8" position="0,0,0.5" look_at="0.0,0.0,0.125" up="1,0,0" lens_focal_length="40"/>
+      </camera>
+    </qt-opengl-->
+    <webgl port="8000" start_browser="false" interactive="false"/>
+  </visualization>
+
+</argos-configuration>

@@ -1,3 +1,4 @@
+add_subdirectory(webgl)
 #
 # Compile the graphical visualization only if the necessary libraries have been found
 #
