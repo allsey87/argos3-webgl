@@ -18,7 +18,7 @@ set(ARGOS3_SOURCES_PLUGINS_SIMULATOR_VISUALIZATIONS_WEBGL
 #
 add_library(argos3plugin_${ARGOS_BUILD_FOR}_webgl SHARED
   ${ARGOS3_SOURCES_PLUGINS_SIMULATOR_VISUALIZATIONS_WEBGL})
-target_link_libraries(argos3plugin_${ARGOS_BUILD_FOR}_webgl argos3plugin_${ARGOS_BUILD_FOR}_entities)
+target_link_libraries(argos3plugin_${ARGOS_BUILD_FOR}_webgl argos3plugin_${ARGOS_BUILD_FOR}_entities ${LWS_LIBRARY})
 
 install(DIRECTORY www DESTINATION include/argos3/plugins/simulator/visualizations/webgl)
 install(FILES ${ARGOS3_HEADERS_PLUGINS_SIMULATOR_VISUALIZATIONS_WEBGL}        DESTINATION include/argos3/plugins/simulator/visualizations/webgl)

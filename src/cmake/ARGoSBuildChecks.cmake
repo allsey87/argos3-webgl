@@ -138,3 +138,12 @@ endif(ARGOS_BUILD_FOR_SIMULATOR)
 if(ARGOS_BUILD_FOR_SIMULATOR)
   include(ARGoSCheckQTOpenGL)
 endif(ARGOS_BUILD_FOR_SIMULATOR)
+
+#
+# Check for Libwebsockets
+#
+find_package(LWS)
+if(LWS_FOUND)
+  set(ARGOS_COMPILE_WEBGL ON)
+  include_directories(${LWS_INCLUDE_DIR})
+endif(LWS_FOUND)

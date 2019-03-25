@@ -108,7 +108,8 @@ namespace argos {
                           "webgl",
                           "Ahmed Abou Zaidi [XXX@gmail.com]",
                           "1.0",
-                          "A browser-based interactive renderer based on WebGL.",
+                          "A browser-based interactive renderer based on WebGL. This plugin is based\n"
+                          "in part on the work of the libwebsockets project (https://libwebsockets.org)",
                           "REQUIRED XML CONFIGURATION\n\n"
                           "  <visualization>\n"
                           "    <webgl />\n"
