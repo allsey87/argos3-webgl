@@ -5,7 +5,7 @@
   <!-- * General configuration * -->
   <!-- ************************* -->
   <framework>
-    <experiment length="0.1" ticks_per_second="20" random_seed="1"/>
+    <experiment length="0" ticks_per_second="20" random_seed="1"/>
   </framework>
 
   <!-- *************** -->
@@ -77,7 +77,7 @@
         <placement idx="8" position="0,0,0.5" look_at="0.0,0.0,0.125" up="1,0,0" lens_focal_length="40"/>
       </camera>
     </qt-opengl-->
-    <webgl port="8000" start_browser="false" interactive="false"/>
+    <webgl port="8000" start_browser="false" interactive="false" static="./frontend"/>
   </visualization>
 
 </argos-configuration>

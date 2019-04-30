@@ -6,6 +6,9 @@
 
 #include "webgl_render.h"
 
+#include <set>
+#include <map>
+#include <chrono>
 #include <argos3/core/simulator/entity/embodied_entity.h>
 #include <argos3/core/simulator/entity/composable_entity.h>
 #include <argos3/core/simulator/space/space.h>
@@ -24,11 +27,13 @@ namespace argos {
          /* Overwrite defaults if they exist in the "webgl" XML configuration node */
          GetNodeAttributeOrDefault(t_tree, "bind", m_strBind, m_strBind);
          GetNodeAttributeOrDefault(t_tree, "port", m_unPort, m_unPort);
+         GetNodeAttributeOrDefault(t_tree, "static", m_strStatic, m_strStatic);
          GetNodeAttributeOrDefault(t_tree, "start_browser", m_bStartBrowser, m_bStartBrowser);
          GetNodeAttributeOrDefault(t_tree, "interactive", m_bInteractive, m_bInteractive);
 
+         m_pcServer = new CWebsocketServer(m_strBind, m_unPort, m_strStatic);
          LOG << "[INFO] WebGL visualization started on: "
-             << "https://" << m_strBind << ":" << m_unPort << "/" << std::endl;
+             << "https://" << m_strBind << ":" << m_unPort << "/" << m_strStatic<< std::endl;
       }
       catch(CARGoSException& ex) {
          THROW_ARGOSEXCEPTION_NESTED("Error initializing the WebGL visualisation plugin", ex);
@@ -37,6 +42,11 @@ namespace argos {
 
    /****************************************/
    /****************************************/
+
+   void CWebGLRender::SendSpawn(CByteArray c_Data, CComposableEntity& c_entity) {
+      m_mapNetworkId[c_entity.GetId()] = m_mapNetworkId.size();
+      m_pcServer->SendBinary(c_Data);
+   }
 
    /* if possible, do not allocate or deallocate memory in this method */
    void CWebGLRender::Execute() {
@@ -49,37 +59,49 @@ namespace argos {
          strStartBrowser += (" https://" + m_strBind + ":" + std::to_string(m_unPort) + "/");
          ::system(strStartBrowser.c_str()); 
       }
+      m_pcServer->waitForConnection();
+      CEntity::TVector& vecEntities = m_cSimulator.GetSpace().GetRootEntityVector();
+      for(CEntity::TVector::iterator itEntities = vecEntities.begin();
+         itEntities != vecEntities.end();
+         ++itEntities) {
+         CallEntityOperation<CWebglSpawnInfo, CWebGLRender, void>(*this, **itEntities);
+      }
+      auto lastUpdate = std::chrono::steady_clock::now();
       /* loop here until experiment done */
       while(!m_cSimulator.IsExperimentFinished()) {
-         LOGERR << "Executing step " << m_cSimulator.GetSpace().GetSimulationClock() << std::endl;
-         /* advance the simulation by one tick */
          m_cSimulator.UpdateSpace();
-         /* fetch the translations, rotations, ids of all simulated entities */
-         for(CEntity* pc_entity : m_cSimulator.GetSpace().GetRootEntityVector()) {
-            /* the follow code is a poor performing hack */
-            /* TODO use proper disbatch methods */
-            CComposableEntity* pc_composable = 
-               dynamic_cast<CComposableEntity*>(pc_entity);
-            if(pc_composable != nullptr && pc_composable->HasComponent("body")) {
-               CEmbodiedEntity& cBody = pc_composable->GetComponent<CEmbodiedEntity>("body");
-               const CVector3& cBodyPosition = cBody.GetOriginAnchor().Position;
-               const CQuaternion& cBodyOrientation = cBody.GetOriginAnchor().Orientation;
-               LOG << pc_entity->GetId() << ": " << cBodyPosition << " / " << cBodyOrientation << std::endl;
-               /*
-               CByteArray cData;
-               cData << cBodyPosition.GetX()
-                     << cBodyPosition.GetY()
-                     << cBodyPosition.GetZ()
-                     << cBodyOrientation.GetW()
-                     << cBodyOrientation.GetX()
-                     << cBodyOrientation.GetY()
-                     << cBodyOrientation.GetZ();
-               LOG << "\tbytes (in network order): " << cData;
-               */
+         auto elapsed = std::chrono::steady_clock::now() - lastUpdate;
+         if (std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() > 1200) {
+            lastUpdate = std::chrono::steady_clock::now();
+
+            CEntity::TVector& vecEntities = m_cSimulator.GetSpace().GetRootEntityVector();
+            for(CEntity::TVector::iterator itEntities = vecEntities.begin();
+               itEntities != vecEntities.end();
+               ++itEntities) {
+               CallEntityOperation<CWebglUpdateInfo, CWebGLRender, void>(*this, **itEntities);
             }
          }
+        m_pcServer->Step();
       }
       /* at this point we should gracefully close any connections */
+   }
+
+   void CWebGLRender::SendPosition(CComposableEntity& c_entity) {
+      CEmbodiedEntity& cBody = c_entity.GetComponent<CEmbodiedEntity>("body");
+      const CVector3& cBodyPosition = cBody.GetOriginAnchor().Position;
+      const CQuaternion& cBodyOrientation = cBody.GetOriginAnchor().Orientation;
+      CByteArray cData;
+      cData << EMessageType::UPDATE;
+           cData << m_mapNetworkId[c_entity.GetId()]
+            << cBodyPosition.GetX()
+            << cBodyPosition.GetY()
+            << cBodyPosition.GetZ() 
+            << cBodyOrientation.GetW()
+            << cBodyOrientation.GetX()
+            << cBodyOrientation.GetY()
+            << cBodyOrientation.GetZ();
+      // LOG << "DATA" << cData <<  std::endl << "Size" << cData.Size() << " " << sizeof(EMessageType::UPDATE) << std::endl;
+      m_pcServer->SendBinary(cData);
    }
 
    /****************************************/
@@ -87,8 +109,7 @@ namespace argos {
 
    /* if possible, deallocate memory in this method */
    void CWebGLRender::Destroy() {
-
-
+      delete m_pcServer;
    }
 
    /****************************************/

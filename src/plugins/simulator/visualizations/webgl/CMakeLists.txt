@@ -3,7 +3,10 @@
 #
 # argos3/plugins/simulator/visualizations/qt-opengl
 set(ARGOS3_HEADERS_PLUGINS_SIMULATOR_VISUALIZATIONS_WEBGL
-  webgl_render.h)
+  webgl_render.h
+  models/webgl_box.h
+  models/webgl_cylinder.h
+  websocket_server.h)
 
 #
 # Source files
@@ -11,7 +14,10 @@ set(ARGOS3_HEADERS_PLUGINS_SIMULATOR_VISUALIZATIONS_WEBGL
 # Common for all builds
 set(ARGOS3_SOURCES_PLUGINS_SIMULATOR_VISUALIZATIONS_WEBGL
   ${ARGOS3_HEADERS_PLUGINS_SIMULATOR_VISUALIZATIONS_WEBGL}
-  webgl_render.cpp)
+  webgl_render.cpp
+  models/webgl_box.cpp
+  models/webgl_cylinder.cpp
+  websocket_server.cpp)
 
 #
 # Create WebGL visualization
