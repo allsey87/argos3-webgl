@@ -101,6 +101,16 @@ configure_file(
   @ONLY)
 
 #
+# Create frontend static files
+#
+file(
+  COPY
+  ${CMAKE_SOURCE_DIR}/plugins/simulator/visualizations/webgl/frontend
+  DESTINATION
+  ${CMAKE_BINARY_DIR}/
+)
+
+#
 # Install extra stuff
 #
 if(ARGOS_INSTALL_LDSOCONF)
