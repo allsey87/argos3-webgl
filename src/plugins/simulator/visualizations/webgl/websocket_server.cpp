@@ -42,18 +42,18 @@ struct lws_protocol_vhost_options ACCESS_CONTROL_REQUEST_HEADERS = {
 CWebsocketServer::CWebsocketServer(std::string str_HostName, UInt16 un_Port,
                                    std::string str_Static)
     : m_strHostName(str_HostName), m_strStatic(str_Static), m_unPort(un_Port),
-    client(nullptr) {
-    struct lws_context_creation_info info;
-    memset(&info, 0, sizeof info);
+    m_sClient(nullptr) {
+    struct lws_context_creation_info sInfo;
+    memset(&sInfo, 0, sizeof sInfo);
     MOUNT_SETTINGS.origin = m_strStatic.c_str();
-    info.mounts = &MOUNT_SETTINGS;
-    info.vhost_name = m_strHostName.c_str();
-    info.port = un_Port;
-    info.protocols = PROTOCOLS;
-    info.user = reinterpret_cast<void *>(this);
-    info.headers = &ACCESS_CONTROL_REQUEST_HEADERS;
+    sInfo.mounts = &MOUNT_SETTINGS;
+    sInfo.vhost_name = m_strHostName.c_str();
+    sInfo.port = un_Port;
+    sInfo.protocols = PROTOCOLS;
+    sInfo.user = reinterpret_cast<void *>(this);
+    sInfo.headers = &ACCESS_CONTROL_REQUEST_HEADERS;
     lws_set_log_level(LLL_USER | LLL_ERR | LLL_WARN | LLL_NOTICE, NULL);
-    m_psContext = lws_create_context(&info);
+    m_psContext = lws_create_context(&sInfo);
     if (!m_psContext) {
         LOGERR << "Context creation failed" << std::endl;
     }
@@ -66,23 +66,23 @@ void CWebsocketServer::Run() {
 }
 
 void CWebsocketServer::waitForConnection() {
-    while (client == nullptr) {
+    while (m_sClient == nullptr) {
         Step();
     }
 }
 
 void CWebsocketServer::Step() { lws_service(m_psContext, 10); }
 
-void CWebsocketServer::SendBinary(CByteArray data) {
-    arrays.push_back({data, LWS_WRITE_BINARY});
+void CWebsocketServer::SendBinary(CByteArray c_data) {
+    m_MessageQueue.push_back({c_data, LWS_WRITE_BINARY});
     lws_cancel_service(m_psContext);
 }
 
 void CWebsocketServer::SendText(std::string send) {
-    CByteArray data;
-    data << send;
-    data.Resize(data.Size() - 1); // avoid having a \0
-    arrays.push_back({data, LWS_WRITE_TEXT});
+    CByteArray cData;
+    cData << send;
+    cData.Resize(cData.Size() - 1); // avoid having a \0
+    m_MessageQueue.push_back({cData, LWS_WRITE_TEXT});
     lws_cancel_service(m_psContext);
 }
 
@@ -90,11 +90,11 @@ int CWebsocketServer::Callback(lws *ps_WSI, lws_callback_reasons e_Reason,
                                SPerSessionData *ps_SessionData) {
     switch (e_Reason) {
     case LWS_CALLBACK_ESTABLISHED:
-        if (client != nullptr) {
+        if (m_sClient != nullptr) {
             lwsl_user("Already has a connection\n");
         } else {
             ps_SessionData->wsi = ps_WSI;
-            client = ps_SessionData;
+            m_sClient = ps_SessionData;
         }
         lws_callback_on_writable(ps_WSI);
         break;
@@ -102,30 +102,33 @@ int CWebsocketServer::Callback(lws *ps_WSI, lws_callback_reasons e_Reason,
         m_bStop = true;
         break;
     case LWS_CALLBACK_CLOSED:
-        if (ps_SessionData == client) {
+        if (ps_SessionData == m_sClient) {
             lwsl_user("Browser disconnected\n");
-            client = nullptr;
+            m_sClient = nullptr;
         }
         break;
     case LWS_CALLBACK_SERVER_WRITEABLE:
-        if (ps_SessionData != client) {
+        if (ps_SessionData != m_sClient) {
             lwsl_user("Kicking. On writable\n");
             return -1;
         }
-        if (!arrays.empty()) {
-            auto a = arrays.front();
+        if (!m_MessageQueue.empty()) {
+            auto a = m_MessageQueue.front();
             size_t size = a.data.Size();
             UInt8 buffer[size + LWS_PRE];
             a.data.FetchBuffer(buffer + LWS_PRE, size);
             lws_write(ps_WSI, buffer + LWS_PRE, size, a.type);
-            arrays.pop_front();
-            if (!arrays.empty()) {
+            m_MessageQueue.pop_front();
+            if (!m_MessageQueue.empty()) {
                 lws_callback_on_writable(ps_WSI);
             }
         }
         break;
     case LWS_CALLBACK_EVENT_WAIT_CANCELLED:
-        if (client) lws_callback_on_writable(client->wsi);
+        if (m_sClient) lws_callback_on_writable(m_sClient->wsi);
+        break;
+    default:
+        LOGERR << "Unhandled case " << std::endl;
         break;
     }
     return 0;
@@ -137,25 +140,28 @@ CWebsocketServer::~CWebsocketServer() {
         lws_context_destroy(m_psContext);
 }
 
-int my_callback(struct lws *wsi, enum lws_callback_reasons reason, void *user,
+int my_callback(lws *s_wsi, enum lws_callback_reasons e_reason, void *user,
                 void *in, size_t len) {
-    if (reason == LWS_CALLBACK_PROTOCOL_INIT) {
+    if (e_reason == LWS_CALLBACK_PROTOCOL_INIT) {
         SDataPerVhost *ps_vhd =
             reinterpret_cast<SDataPerVhost *>(lws_protocol_vh_priv_zalloc(
-                lws_get_vhost(wsi), lws_get_protocol(wsi),
+                lws_get_vhost(s_wsi), lws_get_protocol(s_wsi),
                 sizeof(SDataPerVhost)));
-        ps_vhd->context = lws_get_context(wsi);
-        ps_vhd->protocol = lws_get_protocol(wsi);
-        ps_vhd->vhost = lws_get_vhost(wsi);
+        ps_vhd->context = lws_get_context(s_wsi);
+        ps_vhd->protocol = lws_get_protocol(s_wsi);
+        ps_vhd->vhost = lws_get_vhost(s_wsi);
         ps_vhd->server = reinterpret_cast<CWebsocketServer *>(
             lws_context_user(ps_vhd->context));
     } else {
         SDataPerVhost *ps_vhd =
             reinterpret_cast<SDataPerVhost *>(lws_protocol_vh_priv_get(
-                lws_get_vhost(wsi), lws_get_protocol(wsi)));
+                lws_get_vhost(s_wsi), lws_get_protocol(s_wsi)));
+        if (!ps_vhd) { // Not initialized
+            return 0;
+        }
         SPerSessionData *ps_SessionData =
             reinterpret_cast<SPerSessionData *>(user);
-        return ps_vhd->server->Callback(wsi, reason, ps_SessionData);
+        return ps_vhd->server->Callback(s_wsi, e_reason, ps_SessionData);
     }
     return 0;
 }

@@ -59,8 +59,8 @@ private:
     UInt16 m_unPort;
     struct lws_context *m_psContext;
     bool m_bStop;
-    SPerSessionData* client;
-    std::list<ToSend> arrays;
+    SPerSessionData* m_sClient;
+    std::list<ToSend> m_MessageQueue;
 };
 
 struct SDataPerVhost {
