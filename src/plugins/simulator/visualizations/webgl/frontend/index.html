@@ -14,6 +14,11 @@
 </head>
 <body>
 <input type="text" id="uri" value="ws://localhost:8000">
+<script>
+        let winUrl = new URL(window.location.href);
+        winUrl.protocol = "ws";
+        document.getElementById("uri").value = winUrl;
+</script>
 <button id="connect">Connect</button>
 <div class="logs">
 
