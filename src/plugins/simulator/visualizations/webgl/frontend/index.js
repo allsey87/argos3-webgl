@@ -5,37 +5,56 @@ var renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
+// for the chrome extension
+// https://chrome.google.com/webstore/detail/threejs-inspector/dnhjfclbfhcbcdfpjaeacomhbdfjbebi
 window.scene = scene;
 window.THREE = THREE;
 
 // LIGHT
-var light = new THREE.AmbientLight(0x404040);
-scene.add(light);
-var light = new THREE.HemisphereLight(0xffffbb, 0x080820, 1);
-scene.add(light);
+scene.add(new THREE.AmbientLight(0x404040));
+scene.add(new THREE.HemisphereLight(0xffffbb, 0x080820, 1));
 scene.background = new THREE.Color(0x454545);
 
 
 camera.position.z = 1;
 camera.position.y = 0;
-camera.rotation.x = -69;
+
 
 var uri = document.getElementById("uri");
 var websocket;
 
-function animate() {
-    requestAnimationFrame(animate);
-    renderer.render(scene, camera);
+class MainLoop {
+    constructor() {
+        this.animate = this.animate.bind(this);
+        this.clock = new THREE.Clock();
+        this.callbacks = [];
+    }
+
+    animate() {
+        requestAnimationFrame(this.animate);
+        const deltaTime = this.clock.getDelta();
+        this.callbacks.forEach(func => func(deltaTime));
+        renderer.render(scene, camera);
+    }
+
+    addCallback(callback) {
+        this.callbacks.push(callback);
+    }
 }
+
+const MAINLOOP = new MainLoop();
+MAINLOOP.animate();
+
 
 const LOADED_GLTF = {}
 const OBJECTS = [];
-
+let obj = null;
 function load(e, name) {
     LOADED_GLTF[name] = e;
     e.scene.scale.set(0.1, 0.1, 0.1);
     e.scene.position.set(0.4, 0, 0);
     scene.add(e.scene);
+    obj = e.scene;
 }
 
 function spawn(typeId, reals) {
@@ -62,13 +81,10 @@ function updatePosition(networkId, pos) {
 }
 
 function connect() {
-    console.log("OOO");
     if (websocket) {
         websocket.websocket.close();
     }
     websocket = new Client(uri.value, load, spawn, updatePosition);
 }
-console.log("ooo");
-document.getElementById("connect").addEventListener("click", connect);
 
-animate();
+document.getElementById("connect").addEventListener("click", connect);

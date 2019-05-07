@@ -109,10 +109,10 @@ class Client {
 
     onMessage(e) {
         let dv = new DataView(e.data);
-        console.log(new Uint8Array(e.data));
-        console.log("Message size" + e.data.byteLength);
+       // console.log(new Uint8Array(e.data));
+       // console.log("Message size" + e.data.byteLength);
         const messageType = dv.getUint8(0);
-        console.log("Message type" + messageType);
+       // console.log("Message type" + messageType);
 
         switch (messageType) {
             case 0:
