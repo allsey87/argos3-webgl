@@ -128,7 +128,7 @@ int CWebsocketServer::Callback(lws *ps_WSI, lws_callback_reasons e_Reason,
         if (m_sClient) lws_callback_on_writable(m_sClient->wsi);
         break;
     default:
-        LOGERR << "Unhandled case " << std::endl;
+        LOGERR << "[LWS] Unhandled case " << std::endl;
         break;
     }
     return 0;

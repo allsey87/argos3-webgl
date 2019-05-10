@@ -12,12 +12,9 @@ const UInt16 BOX = 0;
 
     void CWebGLBox::UpdateInfo(CWebGLRender& c_visualization, CBoxEntity& c_entity) {
         c_visualization.SendPosition(c_entity);
-       LOG << "UPDATE BOX: " << c_entity.GetId() << std::endl;
     }
 
     void CWebGLBox::SpawnInfo(CWebGLRender& c_visualization, CBoxEntity& c_entity){
-        // c_entity. 
-        LOG << "SPAWN BOX: " << c_entity.GetId() << std::endl;
         CByteArray cData;
         CEmbodiedEntity& cBody = c_entity.GetComponent<CEmbodiedEntity>("body");
         CVector3& cBodyPosition = cBody.GetOriginAnchor().Position;
@@ -27,7 +24,6 @@ const UInt16 BOX = 0;
               << sSize.GetX() 
               << sSize.GetY()
               << sSize.GetZ();
-        LOG << "{ size: [" << sSize << "], position: [" << cBodyPosition << "]}" << std::endl;
         c_visualization.SendSpawn(cData, c_entity);
     }
 

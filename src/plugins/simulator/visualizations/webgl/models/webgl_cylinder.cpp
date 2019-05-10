@@ -9,11 +9,9 @@ const UInt16 CYLINDER = 1;
 
     void CWebGLCylinder::UpdateInfo(CWebGLRender& c_visualization, CCylinderEntity& c_entity) {
         c_visualization.SendPosition(c_entity);
-        // LOG << "UPDATE CYL: " << c_entity.GetId() << std::endl;
     }
 
     void CWebGLCylinder::SpawnInfo(CWebGLRender& c_visualization, CCylinderEntity& c_entity) {
-        LOG << "SPAWN CYL: " << c_entity.GetId() << std::endl;
         CByteArray cData;
         cData << EMessageType::SPAWN
               << CYLINDER
