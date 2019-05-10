@@ -21,7 +21,7 @@
         <radios implementation="default" show_rays="true"/>
       </sensors>
       <!--params script="../../src/testing/examples/prototype_radio_test.lua"/-->
-      <params script="src/testing/examples/prototype_radio_test.lua"/>
+      <params script="../src/testing/examples/prototype_radio_test.lua"/>
     </lua_controller>
   </controllers>
 
@@ -135,7 +135,7 @@
   <!-- * Visualization * -->
   <!-- ****************** -->
   <visualization>
-    <qt-opengl lua_editor="false">
+    <!--qt-opengl lua_editor="false">
       <camera>
         <placement idx="0" position=" 0,   -1.25,0.5" look_at="0,0,0.05" lens_focal_length="78" />
         <placement idx="1" position=" 1.25,-1.25,0.6" look_at="0,0,0.05" lens_focal_length="92" />
@@ -147,7 +147,8 @@
         <placement idx="7" position="-1.25,-1.25,0.6" look_at="0,0,0.05" lens_focal_length="92" />
         <placement idx="8" position="0,0,0.5" look_at="0.0,0.0,0.125" up="1,0,0" lens_focal_length="40"/>
       </camera>
-    </qt-opengl>
+    </qt-opengl-->
+    <webgl port="8000" start_browser="false" interactive="false" static="./frontend"/>
   </visualization>
 
 </argos-configuration>

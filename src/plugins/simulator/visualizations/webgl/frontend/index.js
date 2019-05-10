@@ -48,6 +48,7 @@ MAINLOOP.animate();
 
 const LOADED_GLTF = {}
 const OBJECTS = [];
+const TYPES = [];
 let obj = null;
 function load(e, name) {
     LOADED_GLTF[name] = e;
@@ -57,34 +58,86 @@ function load(e, name) {
     obj = e.scene;
 }
 
-function spawn(typeId, reals) {
+const UPDATES = {
+    0: basicUpdateCallback,
+    1: basicUpdateCallback,
+    3: prototypeUpdateCallback
+};
 
-    var geometry;
-    var material
-    switch (typeId) {
-        case 0:
-            geometry = new THREE.BoxGeometry(...reals);
-            material = new THREE.MeshBasicMaterial({ color: 0xff00ff });
-            break;
-        case 1:
-            geometry = new THREE.CylinderGeometry(reals[0], reals[0], reals[1]);
-            material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-            break;
-    }
-    var cube = new THREE.Mesh(geometry, material);
-    OBJECTS.push(cube);
-    scene.add(cube);
+const PROTOTYPE_GEOMETRIES = [
+    THREE.BoxGeometry,
+    THREE.CylinderGeometry,
+    THREE.SphereGeometry
+];
+
+const SPAWNS = {
+    0: /* CUBE */ (bin) => {
+        let reals = [0, 0, 0].map(() => bin.extractReal());
+        let geometry = new THREE.BoxGeometry(...reals);
+        let material = new THREE.MeshBasicMaterial({ color: 0xff00ff });
+        TYPES.push(0);
+        return new THREE.Mesh(geometry, material);
+    },
+    1 : /* CYLINDER */ (bin) => {
+        let reals = [0, 0].map(() => bin.extractReal());
+        let geometry = new THREE.CylinderGeometry(reals[0], reals[0], reals[1]);
+        let material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        TYPES.push(1);
+        return new THREE.Mesh(geometry, material);
+    },
+    3: /* PROTOTYPE */ (bin) => {
+        let parent = new THREE.Group();
+
+        while (!bin.isConsumed()) {
+            let type = bin.extractUint8();
+            let extent = [0, 0, 0].map(() => bin.extractReal());
+            let geometry = new PROTOTYPE_GEOMETRIES[type];
+            let material = new THREE.MeshBasicMaterial({ color: 0x1af055 });
+            let mesh = new THREE.Mesh(geometry, material);
+            mesh.scale.set(...extent);
+            parent.add(mesh);
+        }
+        TYPES.push(3);
+        return parent;
+    },
 }
 
-function updatePosition(networkId, pos) {
-    OBJECTS[networkId].position.set(...pos);
+function spawn(typeId, bin) {
+    let object = SPAWNS[typeId](bin);
+    OBJECTS.push(object);
+    scene.add(object);
+}
+
+function prototypeUpdateCallback(networkId, bin) {
+    basicUpdateCallback(networkId, bin);
+    let parent = OBJECTS[networkId];
+
+    parent.children.forEach((mesh) => {
+        let position = [0, 0, 0].map(() => bin.extractReal());
+        let rotation = [0, 0, 0].map(() => bin.extractReal());
+        mesh.position.set(...position);
+        mesh.rotation.set(...rotation);
+    });
+}
+
+function basicUpdateCallback(networkId, bin) {
+    let position = [0, 0, 0].map(() => bin.extractReal());
+    let rotation = [0, 0, 0].map(() => bin.extractReal());
+    if (networkId == 4) {console.log("Parent:"); console.log(rotation);}
+    OBJECTS[networkId].position.set(...position);
+    OBJECTS[networkId].rotation.set(...rotation);
+}
+
+function updateCallback(networkId, bin) {
+    let type = TYPES[networkId];
+    UPDATES[type](networkId, bin);
 }
 
 function connect() {
     if (websocket) {
         websocket.websocket.close();
     }
-    websocket = new Client(uri.value, load, spawn, updatePosition);
+    websocket = new Client(uri.value, load, spawn, updateCallback);
 }
 
 document.getElementById("connect").addEventListener("click", connect);

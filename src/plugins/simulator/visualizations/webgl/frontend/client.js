@@ -38,88 +38,27 @@ class Client {
         console.log("close");
     }
 
-    firstMessage(evt) {
-        console.log(`First message ${evt.data}`);
-        let promises = [];
-        evt.data.split('|').map((name) => ({path: `models/${name}.glb`, name}))
-            .forEach(({path, name}) => {
-            console.log("element is ");
-            console.log(`Foreach Path=(${path}) Name=(${name})`);
-            this.url.pathname = path;
-            var loader = new THREE.GLTFLoader();
-            promises.push(new Promise((resolve) => {
-                loader.load(this.url.href, (e) => {
-                    this.loadCallback(e, name);
-                    resolve();
-                });
-            }));
-        });
-        this.loadPromise = Promise.all(promises);
-        this.websocket.onmessage = this.secondMessage.bind(this);
-    }
-
-    secondMessage(evt) {
-        this.loadPromise.then(() => {
-            evt.data.split('|')
-            .map((el, networkId) => {
-                let [argosId, type] = el.split('=');
-                this.spawnCallback(networkId, argosId, type);
-            });
-            this.websocket.onmessage = this.onMessage.bind(this);
-        });
-        this.websocket.onmessage = null;
-    }
-
-    getReal(dataView) {
-        let nMantissa = dataView.getBigInt64(0, false);
-        if (nMantissa.toString() == "0") {
-            return 0;
-        } else {
-            let nExponent = dataView.getInt32(8, false);
-            let significant = Number(lAbs(nMantissa) - BigInt(1)) / MAX_MANTISSA / 2 + 0.5;
-            return significant * Math.pow(2, nExponent) * Math.sign(Number(nMantissa));
-        }
-    }
-
-    spawnMessage(dataView) {
+    spawnMessage(bin) {
         // cylinder and boxes are charterized by reals
-        const typeId = dataView.getUint16(0, false);
-        console.log("Spawn id" + typeId);
-        dataView = decal(dataView, 2);
-        const reals = [];
-        while (dataView.byteLength) {
-            reals.push(this.getReal(dataView));
-            dataView = decal(dataView, 12)
-        }
-        this.spawnCallback(typeId, reals);
+        const typeId = bin.extractUint16();
+        this.spawnCallback(typeId, bin);
     }
 
-    updateMessage(dataView) {
-        const id = dataView.getUint32(0, false);
-        dataView = decal(dataView, 4);
-
-        const reals = [];
-        while (dataView.byteLength) {
-            reals.push(this.getReal(dataView));
-            dataView = decal(dataView, 12)
-        }
-        console.assert(reals.length == 7); // X Y Z and W X Y Z
-        this.updateCallback(id, reals.splice(0, 3));
+    updateMessage(bin) {
+        const id = bin.extractUint32(0, false);
+        this.updateCallback(id, bin);
     }
 
     onMessage(e) {
-        let dv = new DataView(e.data);
-       // console.log(new Uint8Array(e.data));
-       // console.log("Message size" + e.data.byteLength);
-        const messageType = dv.getUint8(0);
-       // console.log("Message type" + messageType);
+        let bin = new BinaryExtractor(e.data);
+        const messageType = bin.extractUint8();
 
         switch (messageType) {
             case 0:
-                this.spawnMessage(decal(dv, 1));
+                this.spawnMessage(bin);
                 break;
             case 1:
-                this.updateMessage(decal(dv, 1));
+                this.updateMessage(bin);
                 break;
         }
     }

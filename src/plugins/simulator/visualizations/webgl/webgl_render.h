@@ -55,6 +55,7 @@ namespace argos {
       virtual void Destroy();
 
       virtual void SendPosition(CComposableEntity& c_entity);
+      virtual void SendPosition(CComposableEntity& c_entity, CByteArray c_data);
       virtual void SendSpawn(CByteArray c_Data, CComposableEntity& c_entity);
 
       
