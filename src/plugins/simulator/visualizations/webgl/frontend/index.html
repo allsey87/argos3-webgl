@@ -10,19 +10,54 @@
             width: 100%;
             height: 100%;
         }
+        .top {
+            display: flex;
+            flex-direction: row;
+        }
+        .help-text {
+            display: none;
+            position: absolute;
+            border-style: solid;
+            border-width: 2px;
+            z-index: 10;
+        }
+        #help {
+            color: red;
+            border-style: solid;
+            border-radius: 100%;
+        }
+        #help:hover {
+            color: yellow;
+        }
+        #help:hover > .help-text {
+            display: block;
+        }
     </style>
 </head>
 <body>
-<input type="text" id="uri" value="ws://localhost:8000">
-<script>
+    
+    <div class="top">
+        <input type="text" id="uri" value="ws://localhost:8000">
+        <button id="connect">Connect</button>
+        <div id="help">?
+            <div class="help-text">
+                Keys:
+                <ul>
+                    <li>Arrows key to navigate the camera</li>
+                    <li>U button to update camera's rotation axis
+                        to become the current camera's top and current camera'
+                        right
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <script>
         let winUrl = new URL(window.location.href);
         winUrl.protocol = "ws";
         document.getElementById("uri").value = winUrl;
 </script>
-<button id="connect">Connect</button>
-<div class="logs">
 
-</div>
 <script src="math.js"></script>
 <script src="binary-extractor.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/104/three.min.js"></script>

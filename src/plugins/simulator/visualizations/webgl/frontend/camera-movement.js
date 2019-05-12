@@ -2,13 +2,21 @@ const KEYCODES = {
     RIGHT: 39,
     LEFT: 37,
     FORWARD: 38,
-    BACK: 40
+    BACK: 40,
+    U: 85,
 };
+
+const right = () => new THREE.Vector3(1, 0, 0);
+const ttop = () => new THREE.Vector3(0, 1, 0);
+const forward = () => new THREE.Vector3(0, 0, 1);
 
 const SPEED = 0.2;
 let direction = null;
 let isMousePressed = false;
 let dist = 2;
+
+var camHAxis;
+var camVAxis;
 
 function onMouseDown() {
     isMousePressed = true;
@@ -18,27 +26,28 @@ function onMouseUp() {
     isMousePressed = false;
 }
 
-let right = () => new THREE.Vector3(1, 0, 0);
-let ttop = () => new THREE.Vector3(0, 1, 0);
-let forward = () => new THREE.Vector3(0, 0, 1);
+function updateAxis() {
+    camHAxis = ttop().applyQuaternion(camera.quaternion);
+    camVAxis = right().applyQuaternion(camera.quaternion);
+}
+
+updateAxis();
+
 
 function vertical(event) {
-    let axis = right().applyQuaternion(camera.quaternion);
     let angleY = -0.01 * event.movementY;
 
     let q = new THREE.Quaternion();
-    q.setFromAxisAngle(axis, angleY);
+    q.setFromAxisAngle(camVAxis, angleY);
     camera.quaternion.multiply(q);
 }
 
 
 function horizontal(event) {
-    let up = ttop().applyQuaternion(camera.quaternion);
-
-    let angleX = 0.01 * event.movementX;
+    let angleX = -0.01 * event.movementX;
 
     let q = new THREE.Quaternion();
-    q.setFromAxisAngle(up, angleX);
+    q.setFromAxisAngle(camHAxis, angleX);
     camera.quaternion.multiply(q);
 }
 
@@ -66,6 +75,9 @@ function move(deltaTime) {
 
     let vect;
     switch (direction) {
+        case KEYCODES.U:
+            updateAxis();
+            return;
         case KEYCODES.FORWARD:
             vect = forward().applyQuaternion(camera.quaternion).negate();
             break;
