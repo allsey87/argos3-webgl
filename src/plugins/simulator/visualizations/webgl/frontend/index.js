@@ -11,8 +11,9 @@ window.scene = scene;
 window.THREE = THREE;
 
 // LIGHT
-scene.add(new THREE.AmbientLight(0x404040));
-scene.add(new THREE.HemisphereLight(0xffffbb, 0x080820, 1));
+scene.add(new THREE.AmbientLight(0xababab));
+scene.add(new THREE.HemisphereLight(0xababab, 0x080820, 0.9));
+scene.add(new THREE.DirectionalLight(0xffffff, 0.5));
 scene.background = new THREE.Color(0x454545);
 
 
@@ -74,14 +75,14 @@ const SPAWNS = {
     0: /* CUBE */ (bin) => {
         let reals = [0, 0, 0].map(() => bin.extractReal());
         let geometry = new THREE.BoxGeometry(...reals);
-        let material = new THREE.MeshBasicMaterial({ color: 0xff00ff });
+        let material = new THREE.MeshStandardMaterial({ color: 0xff00ff });
         TYPES.push(0);
         return new THREE.Mesh(geometry, material);
     },
     1 : /* CYLINDER */ (bin) => {
         let reals = [0, 0].map(() => bin.extractReal());
         let geometry = new THREE.CylinderGeometry(reals[0], reals[0], reals[1]);
-        let material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        let material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
         TYPES.push(1);
         return new THREE.Mesh(geometry, material);
     },
@@ -92,7 +93,7 @@ const SPAWNS = {
             let type = bin.extractUint8();
             let extent = [0, 0, 0].map(() => bin.extractReal());
             let geometry = new PROTOTYPE_GEOMETRIES[type];
-            let material = new THREE.MeshBasicMaterial({ color: 0x1af055 });
+            let material = new THREE.MeshStandardMaterial({ color: 0x1af055 });
             let mesh = new THREE.Mesh(geometry, material);
             mesh.scale.set(...extent);
             parent.add(mesh);

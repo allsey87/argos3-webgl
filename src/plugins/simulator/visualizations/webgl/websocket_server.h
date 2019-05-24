@@ -20,11 +20,45 @@ struct ToSend {
     lws_write_protocol type;
 };
 
+namespace EClientMessageType {
+    const UInt8 PAUSE=0;
+    const UInt8 AUTO=1;
+    const UInt8 STEP=2;
+};
+
+class CPlayState {
+private:
+    bool m_bIsAutomatic;
+    UInt32 m_unFramesToPlay;
+public:
+    void Pause() {
+        m_unFramesToPlay = 0;
+        m_bIsAutomatic = false;
+    }
+
+    void Frame() {
+        m_bIsAutomatic = false;
+        ++m_unFramesToPlay;
+    }
+
+    bool Automatic() {
+        m_unFramesToPlay = 0;
+        m_bIsAutomatic = true;
+    }
+
+    bool SimulationShouldAdvance() {
+        if (m_bIsAutomatic) return true;
+        if (m_unFramesToPlay == 0) return false;
+        --m_unFramesToPlay;
+        return true;
+    }
+};
 
 
 class CWebsocketServer {
 public:
-    CWebsocketServer(std::string str_HostName, UInt16 un_Port, std::string str_Static);
+    CWebsocketServer(std::string str_HostName, UInt16 un_Port,
+        std::string str_Static, CPlayState* pc_paly_state);
     
     /**
      * Will be used on multithread
@@ -47,12 +81,16 @@ public:
      **/
     void SendText(std::string send);
 
-    int Callback(lws *ps_WSI, lws_callback_reasons e_Reason,
-            SPerSessionData *ps_SessionData);
+    int Callback(SPerSessionData *ps_session_data, lws_callback_reasons e_reason,
+    UInt8* ch, size_t len);
     
     void waitForConnection();
     
     ~CWebsocketServer();
+
+private:
+    void RecievedMessage();
+
 private:
     std::string m_strHostName;
     std::string m_strStatic;
@@ -61,6 +99,8 @@ private:
     bool m_bStop;
     SPerSessionData* m_sClient;
     std::list<ToSend> m_MessageQueue;
+    CPlayState* m_pcPalyState;
+    CByteArray m_cCurrentMessage;
 };
 
 struct SDataPerVhost {

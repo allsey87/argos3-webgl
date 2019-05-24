@@ -1,5 +1,9 @@
 const MAX_MANTISSA = 9223372036854775806;
 
+const PAUSE=0;
+const AUTO=1;
+const STEP=2;
+
 class Client {
     constructor(uri, loadCallback, spawnCallback, updateCallback) {
         this.websocket = new WebSocket(uri, "spawn-objects" /* libwebsocket protocol */);
@@ -61,6 +65,27 @@ class Client {
                 this.updateMessage(bin);
                 break;
         }
+    }
+
+    sendStep() {
+        isAuto = false;
+        let data = new ArrayBuffer(1);
+        (new Uint8Array(data))[0] = STEP;
+        this.websocket.send(data);
+    }
+    
+    sendAuto() {
+        isAuto = true;
+        updateButtonGray();
+        let data = new ArrayBuffer(1);
+        (new Uint8Array(data))[0] = AUTO;
+        this.websocket.send(data);
+    }
+    
+    sendPause() {
+        isAuto = false;
+        updateButtonGray();
+        this.websocket.send(new ArrayBuffer(1));
     }
 }
 

@@ -39,6 +39,9 @@
     <div class="top">
         <input type="text" id="uri" value="ws://localhost:8000">
         <button id="connect">Connect</button>
+        <button id="sendStep" onclick="websocket.sendStep()">Step</button>
+        <button id="sendAuto" onclick="websocket.sendAuto()">Play</button>
+        <button id="sendPause" onclick="websocket.sendPause()">Pause</button>
         <div id="help">?
             <div class="help-text">
                 Keys:
@@ -58,6 +61,7 @@
         document.getElementById("uri").value = winUrl;
 </script>
 
+<script src="play-state.js"></script>
 <script src="math.js"></script>
 <script src="binary-extractor.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/104/three.min.js"></script>

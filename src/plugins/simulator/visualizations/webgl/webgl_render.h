@@ -70,10 +70,7 @@ namespace argos {
       bool m_bInteractive;
       bool m_bStartBrowser;
       CWebsocketServer* m_pcServer;
-
-      
-
-
+      CPlayState m_cPlayState;
    };
    // enumeration problem 
    namespace EMessageType {

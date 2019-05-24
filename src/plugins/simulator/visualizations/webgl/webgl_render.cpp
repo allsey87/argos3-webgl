@@ -31,7 +31,7 @@ namespace argos {
          GetNodeAttributeOrDefault(t_tree, "start_browser", m_bStartBrowser, m_bStartBrowser);
          GetNodeAttributeOrDefault(t_tree, "interactive", m_bInteractive, m_bInteractive);
 
-         m_pcServer = new CWebsocketServer(m_strBind, m_unPort, m_strStatic);
+         m_pcServer = new CWebsocketServer(m_strBind, m_unPort, m_strStatic, &m_cPlayState);
          LOG << "[INFO] WebGL visualization started on: "
              << "https://" << m_strBind << ":" << m_unPort << "/" << std::endl
              << "[INFO] Serving the static folder: " << m_strStatic << std::endl;
@@ -68,18 +68,25 @@ namespace argos {
          CallEntityOperation<CWebglSpawnInfo, CWebGLRender, void>(*this, **itEntities);
       }
       auto lastUpdate = std::chrono::steady_clock::now();
+      bool bDirty = true;
       /* loop here until experiment done */
       while(!m_cSimulator.IsExperimentFinished()) {
-         m_cSimulator.UpdateSpace();
-         auto elapsed = std::chrono::steady_clock::now() - lastUpdate;
-         if (std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() > 1200) {
-            lastUpdate = std::chrono::steady_clock::now();
+         if (m_cPlayState.SimulationShouldAdvance()){
+            m_cSimulator.UpdateSpace();
+            bDirty = true;
+         }
 
-            CEntity::TVector& vecEntities = m_cSimulator.GetSpace().GetRootEntityVector();
-            for(CEntity::TVector::iterator itEntities = vecEntities.begin();
-               itEntities != vecEntities.end();
-               ++itEntities) {
-               CallEntityOperation<CWebglUpdateInfo, CWebGLRender, void>(*this, **itEntities);
+         if (bDirty) {
+            auto elapsed = std::chrono::steady_clock::now() - lastUpdate;
+            if (std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() > 120) {
+               lastUpdate = std::chrono::steady_clock::now();
+               bDirty = false;
+               CEntity::TVector& vecEntities = m_cSimulator.GetSpace().GetRootEntityVector();
+               for(CEntity::TVector::iterator itEntities = vecEntities.begin();
+                  itEntities != vecEntities.end();
+                  ++itEntities) {
+                  CallEntityOperation<CWebglUpdateInfo, CWebGLRender, void>(*this, **itEntities);
+               }
             }
          }
         m_pcServer->Step();
