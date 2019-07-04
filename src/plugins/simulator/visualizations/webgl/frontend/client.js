@@ -67,6 +67,10 @@ class Client {
         }
     }
 
+    sendBuffer(buffer) {
+        this.websocket.send(buffer);
+    }
+
     sendStep() {
         isAuto = false;
         let data = new ArrayBuffer(1);

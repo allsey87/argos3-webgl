@@ -40,9 +40,10 @@ struct lws_protocol_vhost_options ACCESS_CONTROL_REQUEST_HEADERS = {
     /*options*/ nullptr, "access-control-request-headers:", "*"};
 
 CWebsocketServer::CWebsocketServer(std::string str_HostName, UInt16 un_Port,
-                                   std::string str_Static, CPlayState* pc_paly_state)
+                                   std::string str_Static, CPlayState* pc_paly_state,
+                                   std::function<void(CByteArray&)> c_moveCallback)
     : m_strHostName(str_HostName), m_strStatic(str_Static), m_unPort(un_Port),
-    m_sClient(nullptr), m_pcPalyState(pc_paly_state) {
+    m_sClient(nullptr), m_pcPalyState(pc_paly_state), m_cMoveCallback(c_moveCallback) {
     struct lws_context_creation_info sInfo;
     memset(&sInfo, 0, sizeof sInfo);
     MOUNT_SETTINGS.origin = m_strStatic.c_str();
@@ -134,7 +135,7 @@ int CWebsocketServer::Callback(SPerSessionData *ps_session_data, lws_callback_re
         }
         break;
     default:
-        LOGERR << "[LWS] Unhandled case " << std::endl;
+        LOGERR << "[LWS] Unhandled case reason=" << e_reason << std::endl;
         break;
     }
     return 0;
@@ -158,8 +159,19 @@ void CWebsocketServer::RecievedMessage() {
                 lwsl_user("STEP\n");
                 m_pcPalyState->Frame();
             break;
+            case EClientMessageType::MOVE:
+                lwsl_user("MOVE \n");
+                if (m_cMoveCallback) {
+                    lwsl_user("YES\n");
+                    LOG << "Callback is set" << std::endl;
+                } else {
+                    lwsl_user("NO\n");
+                    LOG << "Callback is unset" << std::endl;
+                }
+                m_cMoveCallback(m_cCurrentMessage);
+                break;
         default:
-            lwsl_err("Unhandled case\n");
+            lwsl_err("Unknown message type\n");
             break;
         }
     }

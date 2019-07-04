@@ -31,7 +31,8 @@ namespace argos {
          GetNodeAttributeOrDefault(t_tree, "start_browser", m_bStartBrowser, m_bStartBrowser);
          GetNodeAttributeOrDefault(t_tree, "interactive", m_bInteractive, m_bInteractive);
 
-         m_pcServer = new CWebsocketServer(m_strBind, m_unPort, m_strStatic, &m_cPlayState);
+         m_pcServer = new CWebsocketServer(m_strBind, m_unPort, m_strStatic, &m_cPlayState,
+                     std::bind(&CWebGLRender::RecievedMove, this, std::placeholders::_1));
          LOG << "[INFO] WebGL visualization started on: "
              << "https://" << m_strBind << ":" << m_unPort << "/" << std::endl
              << "[INFO] Serving the static folder: " << m_strStatic << std::endl;
@@ -46,6 +47,7 @@ namespace argos {
 
    void CWebGLRender::SendSpawn(CByteArray c_Data, CComposableEntity& c_entity) {
       m_mapNetworkId[c_entity.GetId()] = m_mapNetworkId.size();
+      m_vecIds.push_back(c_entity.GetId());
       m_pcServer->SendBinary(c_Data);
    }
 
@@ -152,6 +154,40 @@ namespace argos {
    void CWebGLRender::Reset() {
 
 
+   }
+
+   /****************************************/
+   /****************************************/
+
+   void CWebGLRender::RecievedMove(CByteArray& c_Data) {
+      lwsl_user("MOVING ELEMENT\n");
+      UInt32 uNetworkId;
+      c_Data >> uNetworkId;
+      std::string strId = m_vecIds[uNetworkId];
+      LOG << "MOVING ELEMENT: " << strId << std::endl;
+      Real fX, fY, fZ;
+      c_Data >> fX;
+      c_Data >> fY;
+      // TODO remove fZ because it does not need to
+      // be sent
+      c_Data >> fZ;
+
+      CVector3 cNewPos(fX, fY, fZ);
+      CEntity* pcEntity = m_cSimulator.GetSpace().GetEntityMapPerId()[strId];
+      CEmbodiedEntity* pcBodyEntity = dynamic_cast<CEmbodiedEntity*>(pcEntity);
+      if (pcBodyEntity == NULL) {
+         CComposableEntity* pcCompEntity = dynamic_cast<CComposableEntity*>(pcEntity);
+         if(pcCompEntity != NULL && pcCompEntity->HasComponent("body")) {
+               pcBodyEntity = &pcCompEntity->GetComponent<CEmbodiedEntity>("body");
+         } else {
+            return;
+         }
+      }
+
+      lwsl_user("(%f, %f, %f)", fX, fY, fZ);
+
+      pcBodyEntity->MoveTo(cNewPos,
+                             pcBodyEntity->GetOriginAnchor().Orientation);
    }
 
    /****************************************/

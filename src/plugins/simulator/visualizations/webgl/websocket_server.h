@@ -6,6 +6,7 @@
 #include <argos3/core/utility/datatypes/datatypes.h>
 #include <argos3/core/utility/datatypes/byte_array.h>
 #include <argos3/core/utility/logging/argos_log.h>
+#include <functional>
 namespace argos {
 
 int my_callback(struct lws *wsi, enum lws_callback_reasons reason,
@@ -24,6 +25,8 @@ namespace EClientMessageType {
     const UInt8 PAUSE=0;
     const UInt8 AUTO=1;
     const UInt8 STEP=2;
+    const UInt8 RESET=3;
+    const UInt8 MOVE=4;
 };
 
 class CPlayState {
@@ -58,7 +61,8 @@ public:
 class CWebsocketServer {
 public:
     CWebsocketServer(std::string str_HostName, UInt16 un_Port,
-        std::string str_Static, CPlayState* pc_paly_state);
+        std::string str_Static, CPlayState* pc_paly_state,
+        std::function<void(CByteArray&)> c_moveCallback);
     
     /**
      * Will be used on multithread
@@ -100,6 +104,7 @@ private:
     SPerSessionData* m_sClient;
     std::list<ToSend> m_MessageQueue;
     CPlayState* m_pcPalyState;
+    std::function<void(CByteArray&)> m_cMoveCallback;
     CByteArray m_cCurrentMessage;
 };
 

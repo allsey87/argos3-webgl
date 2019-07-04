@@ -4,6 +4,7 @@ var camera = new THREE.PerspectiveCamera(
 var renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
+renderer.domElement.oncontextmenu = (m) => false;
 
 // for the chrome extension
 // https://chrome.google.com/webstore/detail/threejs-inspector/dnhjfclbfhcbcdfpjaeacomhbdfjbebi
@@ -105,6 +106,7 @@ const SPAWNS = {
 
 function spawn(typeId, bin) {
     let object = SPAWNS[typeId](bin);
+    object.netId = OBJECTS.length;
     OBJECTS.push(object);
     scene.add(object);
 }
@@ -124,7 +126,6 @@ function prototypeUpdateCallback(networkId, bin) {
 function basicUpdateCallback(networkId, bin) {
     let position = [0, 0, 0].map(() => bin.extractReal());
     let rotation = [0, 0, 0].map(() => bin.extractReal());
-    if (networkId == 4) {console.log("Parent:"); console.log(rotation);}
     OBJECTS[networkId].position.set(...position);
     OBJECTS[networkId].rotation.set(...rotation);
 }

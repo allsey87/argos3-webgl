@@ -18,12 +18,18 @@ let dist = 2;
 var camHAxis;
 var camVAxis;
 
-function onMouseDown() {
-    isMousePressed = true;
+function onMouseDown(event) {
+    if (event.button == 2) {
+        event.preventDefault();
+        isMousePressed = true;
+    }
 }
 
 function onMouseUp() {
-    isMousePressed = false;
+    if (event.button == 2) {
+        event.preventDefault();
+        isMousePressed = false;
+    }
 }
 
 function updateAxis() {
@@ -52,6 +58,10 @@ function horizontal(event) {
 }
 
 function onMouseMove(event) {
+    event.preventDefault();
+    let canvasBounds = renderer.context.canvas.getBoundingClientRect();
+    mouseVector.x = ( ( event.clientX - canvasBounds.left ) / ( canvasBounds.right - canvasBounds.left ) ) * 2 - 1;
+    mouseVector.y = - ( ( event.clientY - canvasBounds.top ) / ( canvasBounds.bottom - canvasBounds.top) ) * 2 + 1;
     if (isMousePressed) {
         vertical(event);
         horizontal(event);
@@ -97,10 +107,70 @@ function move(deltaTime) {
     camera.position.add(vect);
 }
 
+function metalness(obj, val) {
+    if (obj.material === undefined) {
+        obj.children.forEach((e) => e.material.metalness = val);
+    } else {
+        obj.material.metalness = val;
+    }
+}
+
+let raycaster = new THREE.Raycaster();
+let mouseVector = new THREE.Vector2();
+const XY_PLANE = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+let sel;
+const MAX_DISTANCE_CLICK = 30;
 // MOUSE
 document.addEventListener("mousemove", onMouseMove, false);
-document.addEventListener("mousedown", onMouseDown, false);
-document.addEventListener("mouseup", onMouseUp, false);
+renderer.domElement.addEventListener("mousedown", onMouseDown, false);
+renderer.domElement.addEventListener("mouseup", onMouseUp, false);
+renderer.domElement.addEventListener("click", (ev) => {
+    raycaster.setFromCamera(mouseVector, camera);
+    let res = raycaster.intersectObjects(scene.children, true);
+
+    if (res.length > 0) {
+        if (sel) {
+            metalness(sel, 0.5);
+        }
+
+        if (res[0].object != sel) {
+            sel = res[0].object;
+            if (sel.netId === undefined) {
+                // Selected prototype part
+                sel = sel.parent;
+            }
+            metalness(sel, 0.4);
+        } else {
+            sel = undefined;
+        }
+    } else if (sel) {
+        let origin = raycaster.ray.origin.clone();
+        let end = raycaster.ray.direction
+                    .clone()
+                    .normalize()
+                    .multiplyScalar(MAX_DISTANCE_CLICK)
+                    .add(origin);
+    
+        let line = new THREE.Line3(origin, end);
+        let inter = XY_PLANE.intersectLine(line);
+        if (inter) {
+            // MOVE = 4
+
+            let writer = new BinaryWriter();
+
+            writer.addUInt8(4);
+
+            writer.addUInt32(sel.netId);
+            writer.addReal(inter.x);
+            writer.addReal(inter.y);
+            writer.addReal(sel.position.z);
+            websocket.sendBuffer(writer.getArrayBuffer());
+
+            metalness(sel, 0.5);
+            sel = undefined;
+        }
+    }
+},false);
 // KEYBOARD
 MAINLOOP.addCallback(move);
 document.addEventListener("keyup", onKeyUp, false);

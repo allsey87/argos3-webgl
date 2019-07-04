@@ -57,14 +57,15 @@ namespace argos {
       virtual void SendPosition(CComposableEntity& c_entity);
       virtual void SendPosition(CComposableEntity& c_entity, CByteArray c_data);
       virtual void SendSpawn(CByteArray c_Data, CComposableEntity& c_entity);
-
+      void RecievedMove(CByteArray& c_Data);
       
+      typedef UInt32 networkId_t;
    private:
       CSimulator& m_cSimulator;
-      typedef UInt32 networkId_t;
 
       std::string m_strBind;
       std::string m_strStatic;
+      std::vector<std::string> m_vecIds;
       std::map<std::string, networkId_t> m_mapNetworkId;
       UInt16 m_unPort;
       bool m_bInteractive;
