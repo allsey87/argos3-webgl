@@ -77,57 +77,70 @@ const SPAWNS = {
         let reals = [0, 0, 0].map(() => bin.extractReal());
         let geometry = new THREE.BoxGeometry(...reals);
         let material = new THREE.MeshStandardMaterial({ color: 0xff00ff });
-        TYPES.push(0);
-        return new THREE.Mesh(geometry, material);
+
+        const mesh = new THREE.Mesh(geometry, material);
+        setTransform(mesh, bin);
+        return mesh;
     },
     1 : /* CYLINDER */ (bin) => {
         let reals = [0, 0].map(() => bin.extractReal());
         let geometry = new THREE.CylinderGeometry(reals[0], reals[0], reals[1]);
         let material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-        TYPES.push(1);
-        return new THREE.Mesh(geometry, material);
+
+
+        const mesh = new THREE.Mesh(geometry, material);
+        setTransform(mesh, bin);
+        return mesh;
     },
     3: /* PROTOTYPE */ (bin) => {
+
         let parent = new THREE.Group();
+        setTransform(parent, bin);
 
         while (!bin.isConsumed()) {
             let type = bin.extractUint8();
             let extent = [0, 0, 0].map(() => bin.extractReal());
             let geometry = new PROTOTYPE_GEOMETRIES[type];
             let material = new THREE.MeshStandardMaterial({ color: 0x1af055 });
+
             let mesh = new THREE.Mesh(geometry, material);
+            setTransform(mesh, bin);
             mesh.scale.set(...extent);
             parent.add(mesh);
         }
-        TYPES.push(3);
+
         return parent;
     },
 }
 
+function setTransform(mesh, bin) {
+    let position = [0, 0, 0].map(() => bin.extractReal());
+    let rotation = [0, 0, 0].map(() => bin.extractReal());
+    mesh.position.set(...position);
+    mesh.rotation.set(...rotation);
+}
+
 function spawn(typeId, bin) {
     let object = SPAWNS[typeId](bin);
+    TYPES.push(typeId);
     object.netId = OBJECTS.length;
     OBJECTS.push(object);
     scene.add(object);
 }
 
 function prototypeUpdateCallback(networkId, bin) {
-    basicUpdateCallback(networkId, bin);
+    if (!!bin.extractUint8()) {
+        basicUpdateCallback(networkId, bin);
+    }
     let parent = OBJECTS[networkId];
-
-    parent.children.forEach((mesh) => {
-        let position = [0, 0, 0].map(() => bin.extractReal());
-        let rotation = [0, 0, 0].map(() => bin.extractReal());
-        mesh.position.set(...position);
-        mesh.rotation.set(...rotation);
-    });
+    while (!bin.isConsumed()) {
+        let mesh = parent.children[bin.extractUint8()];
+        setTransform(mesh, bin);
+    }
 }
 
 function basicUpdateCallback(networkId, bin) {
-    let position = [0, 0, 0].map(() => bin.extractReal());
-    let rotation = [0, 0, 0].map(() => bin.extractReal());
-    OBJECTS[networkId].position.set(...position);
-    OBJECTS[networkId].rotation.set(...rotation);
+    setTransform(OBJECTS[networkId], bin);
 }
 
 function updateCallback(networkId, bin) {

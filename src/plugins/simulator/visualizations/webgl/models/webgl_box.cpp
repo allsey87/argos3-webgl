@@ -11,19 +11,37 @@ const UInt16 BOX = 0;
     }
 
     void CWebGLBox::UpdateInfo(CWebGLRender& c_visualization, CBoxEntity& c_entity) {
-        c_visualization.SendPosition(c_entity);
+        CByteArray cData;
+        cData << EMessageType::UPDATE << c_visualization.getNetworkId(c_entity.GetId());
+
+        CEmbodiedEntity& cBody = c_entity.GetComponent<CEmbodiedEntity>("body");
+        const CVector3& cBodyPosition = cBody.GetOriginAnchor().Position;
+        const CQuaternion& cBodyOrientation = cBody.GetOriginAnchor().Orientation;
+        std::pair<CVector3, CQuaternion>& ref = m_mapTransforms[c_entity.GetId()];
+
+        if (ref.first != cBodyPosition || !(ref.second == cBodyOrientation)) {
+            ref.first = cBodyPosition;
+            ref.second = cBodyOrientation;
+            WriteCord(cData, cBodyPosition, cBodyOrientation);
+            // !!! TODO sendposition or here?
+            c_visualization.SendUpdates(cData);
+        }
     }
 
     void CWebGLBox::SpawnInfo(CWebGLRender& c_visualization, CBoxEntity& c_entity){
         CByteArray cData;
         CEmbodiedEntity& cBody = c_entity.GetComponent<CEmbodiedEntity>("body");
         CVector3& cBodyPosition = cBody.GetOriginAnchor().Position;
+        const CQuaternion& cBodyOrientation = cBody.GetOriginAnchor().Orientation;
+
         auto sSize = c_entity.GetSize();
         cData << EMessageType::SPAWN
               << BOX
               << sSize.GetX() 
               << sSize.GetY()
               << sSize.GetZ();
+        WriteCord(cData, cBodyPosition, cBodyOrientation);
+        LOG << "SPAWN BOX " << cData.Size() << std::endl;
         c_visualization.SendSpawn(cData, c_entity);
     }
 

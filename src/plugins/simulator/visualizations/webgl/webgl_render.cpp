@@ -51,6 +51,9 @@ namespace argos {
       m_pcServer->SendBinary(c_Data);
    }
 
+   /****************************************/
+   /****************************************/
+
    /* if possible, do not allocate or deallocate memory in this method */
    void CWebGLRender::Execute() {
       if(m_bStartBrowser) {
@@ -87,6 +90,7 @@ namespace argos {
                for(CEntity::TVector::iterator itEntities = vecEntities.begin();
                   itEntities != vecEntities.end();
                   ++itEntities) {
+                  //
                   CallEntityOperation<CWebglUpdateInfo, CWebGLRender, void>(*this, **itEntities);
                }
             }
@@ -96,47 +100,8 @@ namespace argos {
       /* at this point we should gracefully close any connections */
    }
 
-   void CWebGLRender::SendPosition(CComposableEntity& c_entity, CByteArray c_data) {
-      CEmbodiedEntity& cBody = c_entity.GetComponent<CEmbodiedEntity>("body");
-      const CVector3& cBodyPosition = cBody.GetOriginAnchor().Position;
-      const CQuaternion& cBodyOrientation = cBody.GetOriginAnchor().Orientation;
-      CRadians cZAngle, cYAngle, cXAngle;
-      cBodyOrientation.ToEulerAngles(cZAngle, cYAngle, cXAngle);
-
-      CByteArray cData;
-      cData << EMessageType::UPDATE;
-           cData << m_mapNetworkId[c_entity.GetId()]
-            << cBodyPosition.GetX()
-            << cBodyPosition.GetY()
-            << cBodyPosition.GetZ()
-            << cXAngle.GetValue()
-            << cYAngle.GetValue()
-            << cZAngle.GetValue();
-
-      size_t size = c_data.Size();
-      UInt8 buffer[size];
-      c_data.FetchBuffer(buffer, size);
-      cData.AddBuffer(buffer, size);
-      m_pcServer->SendBinary(cData);
-   }
-
-   void CWebGLRender::SendPosition(CComposableEntity& c_entity) {
-      CEmbodiedEntity& cBody = c_entity.GetComponent<CEmbodiedEntity>("body");
-      const CVector3& cBodyPosition = cBody.GetOriginAnchor().Position;
-      const CQuaternion& cBodyOrientation = cBody.GetOriginAnchor().Orientation;
-      CRadians cZAngle, cYAngle, cXAngle;
-      cBodyOrientation.ToEulerAngles(cZAngle, cYAngle, cXAngle);
-      CByteArray cData;
-      cData << EMessageType::UPDATE;
-           cData << m_mapNetworkId[c_entity.GetId()]
-            << cBodyPosition.GetX()
-            << cBodyPosition.GetY()
-            << cBodyPosition.GetZ() 
-            << cXAngle.GetValue()
-            << cYAngle.GetValue()
-            << cZAngle.GetValue();
-      // LOG << "DATA" << cData <<  std::endl << "Size" << cData.Size() << " " << sizeof(EMessageType::UPDATE) << std::endl;
-      m_pcServer->SendBinary(cData);
+   void CWebGLRender::SendUpdates(CByteArray& c_data) {
+      m_pcServer->SendBinary(c_data);
    }
 
    /****************************************/

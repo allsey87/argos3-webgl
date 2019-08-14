@@ -20,7 +20,7 @@ namespace argos {
       virtual void SpawnInfo(CWebGLRender& c_visualization, CBoxEntity& c_entity);
 
    private:
-
+      std::map<std::string, std::pair<CVector3, CQuaternion>> m_mapTransforms;
    };
 
 }

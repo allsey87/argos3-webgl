@@ -6,13 +6,17 @@ class BinaryExtractor {
 
     extractReal() {
         let nMantissa = this.extractBigInt64();
+        let nExponent = this.extractInt32();
         if (nMantissa.toString() == "0") {
             return 0;
         } else {
-            let nExponent = this.extractInt32();
             let significant = Number(lAbs(nMantissa) - BigInt(1)) / MAX_MANTISSA / 2 + 0.5;
             return significant * Math.pow(2, nExponent) * Math.sign(Number(nMantissa));
         }
+    }
+
+    rest() {
+        return this.dv.byteLength - this.offset;
     }
 
     isConsumed() {

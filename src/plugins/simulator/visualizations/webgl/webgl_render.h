@@ -14,6 +14,8 @@ namespace argos {
 #include <map>
 #include <argos3/core/simulator/visualization/visualization.h>
 #include <argos3/core/simulator/entity/entity.h>
+#include <argos3/core/utility/math/vector3.h>
+#include <argos3/core/utility/math/quaternion.h>
 #include "websocket_server.h"
 
 namespace argos {
@@ -36,6 +38,7 @@ namespace argos {
    class CWebGLRender : public CVisualization {
 
    public:
+      typedef UInt32 networkId_t;
 
       CWebGLRender() :
          m_cSimulator(CSimulator::GetInstance()),
@@ -54,12 +57,14 @@ namespace argos {
 
       virtual void Destroy();
 
-      virtual void SendPosition(CComposableEntity& c_entity);
-      virtual void SendPosition(CComposableEntity& c_entity, CByteArray c_data);
+      virtual void SendUpdates(CByteArray& c_entity);
       virtual void SendSpawn(CByteArray c_Data, CComposableEntity& c_entity);
       void RecievedMove(CByteArray& c_Data);
+
+      networkId_t getNetworkId(const std::string& str_id) {
+         return m_mapNetworkId[str_id];
+      }
       
-      typedef UInt32 networkId_t;
    private:
       CSimulator& m_cSimulator;
 
@@ -73,6 +78,18 @@ namespace argos {
       CWebsocketServer* m_pcServer;
       CPlayState m_cPlayState;
    };
+
+   inline void WriteCord(CByteArray& cData, const CVector3& c_position, const CQuaternion& c_orientation) {
+        CRadians cZAngle, cYAngle, cXAngle;
+        c_orientation.ToEulerAngles(cZAngle, cYAngle, cXAngle);
+        cData << c_position.GetX()
+              << c_position.GetY()
+              << c_position.GetZ()
+              << cXAngle.GetValue()
+              << cYAngle.GetValue()
+              << cZAngle.GetValue();
+    }
+
    // enumeration problem 
    namespace EMessageType {
          const UInt8 SPAWN=0u;
