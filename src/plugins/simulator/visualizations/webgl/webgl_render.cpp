@@ -30,6 +30,7 @@ namespace argos {
          GetNodeAttributeOrDefault(t_tree, "static", m_strStatic, m_strStatic);
          GetNodeAttributeOrDefault(t_tree, "start_browser", m_bStartBrowser, m_bStartBrowser);
          GetNodeAttributeOrDefault(t_tree, "interactive", m_bInteractive, m_bInteractive);
+         GetNodeAttributeOrDefault(t_tree, "period", m_unPeriod, m_unPeriod);
 
          m_pcServer = new CWebsocketServer(m_strBind, m_unPort, m_strStatic, &m_cPlayState,
                      std::bind(&CWebGLRender::RecievedMove, this, std::placeholders::_1));
@@ -83,7 +84,7 @@ namespace argos {
 
          if (bDirty) {
             auto elapsed = std::chrono::steady_clock::now() - lastUpdate;
-            if (std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() > 120) {
+            if (std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() > m_unPeriod) {
                lastUpdate = std::chrono::steady_clock::now();
                bDirty = false;
                CEntity::TVector& vecEntities = m_cSimulator.GetSpace().GetRootEntityVector();

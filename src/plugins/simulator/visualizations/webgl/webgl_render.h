@@ -44,6 +44,7 @@ namespace argos {
          m_cSimulator(CSimulator::GetInstance()),
          m_strBind("localhost"),
          m_unPort(8000),
+         m_unPeriod(30),
          m_bInteractive(false),
          m_bStartBrowser(false) {}
 
@@ -73,6 +74,7 @@ namespace argos {
       std::vector<std::string> m_vecIds;
       std::map<std::string, networkId_t> m_mapNetworkId;
       UInt16 m_unPort;
+      UInt16 m_unPeriod;
       bool m_bInteractive;
       bool m_bStartBrowser;
       CWebsocketServer* m_pcServer;

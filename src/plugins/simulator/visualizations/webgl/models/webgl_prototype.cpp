@@ -26,7 +26,9 @@ void CWebGLPrototype::UpdateInfo(CWebGLRender &c_visualization,
     std::pair<CVector3, CQuaternion> &ref = m_mapTransforms[c_entity.GetId()];
 
     if (ref.first != cBodyPosition || !(ref.second == cBodyOrientation)) {
+        LOG << "OLD POSITION" << ref.first << std::endl;
         ref.first = cBodyPosition;
+        LOG << "NEW POSITION" << ref.first << std::endl;
         ref.second = cBodyOrientation;
         bShouldSend = true;
         cData << (UInt8)1;
@@ -47,10 +49,10 @@ void CWebGLPrototype::UpdateInfo(CWebGLRender &c_visualization,
         /* Get the orientation of the link */
         const CQuaternion &cOrientation = pcLink->GetAnchor().OffsetOrientation;
 
-        std::pair<CVector3, CQuaternion> &ref = vecTransforms[childId];
-        if (ref.first != cPosition || !(ref.second == cBodyOrientation)) {
-            ref.first = cPosition;
-            ref.second = cBodyOrientation;
+        std::pair<CVector3, CQuaternion> & cChildPair = vecTransforms[childId];
+        if ( cChildPair.first != cPosition || !( cChildPair.second == cBodyOrientation)) {
+             cChildPair.first = cPosition;
+             cChildPair.second = cBodyOrientation;
             bShouldSend = true;
             cData << childId;
             WriteCord(cData, cPosition, cOrientation);

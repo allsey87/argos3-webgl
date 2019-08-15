@@ -148,7 +148,7 @@
         <placement idx="8" position="0,0,0.5" look_at="0.0,0.0,0.125" up="1,0,0" lens_focal_length="40"/>
       </camera>
     </qt-opengl-->
-    <webgl port="8000" start_browser="false" interactive="false" static="./frontend"/>
+    <webgl period=30 port="8000" start_browser="false" interactive="false" static="./frontend"/>
   </visualization>
 
 </argos-configuration>
