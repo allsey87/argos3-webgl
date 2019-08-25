@@ -20,8 +20,7 @@ scene.background = new THREE.Color(0x454545);
 
 camera.position.z = 1;
 camera.position.y = 0;
-
-
+camera.position.set(0.24952068935534208, 0.11596185280276139, 0.16394337708001633) ; camera.rotation.set(-0.4302663515702581, 0.37962892503458523, 0.07864237505093132)
 var uri = document.getElementById("uri");
 var websocket;
 
@@ -100,12 +99,14 @@ const SPAWNS = {
         while (!bin.isConsumed()) {
             let type = bin.extractUint8();
             let extent = [0, 0, 0].map(() => bin.extractReal());
-            let geometry = new PROTOTYPE_GEOMETRIES[type];
+            let geometry = new PROTOTYPE_GEOMETRIES[type](...extent);
             let material = new THREE.MeshStandardMaterial({ color: 0x1af055 });
 
             let mesh = new THREE.Mesh(geometry, material);
-            setTransform(mesh, bin);
-            mesh.scale.set(...extent);
+            let position = [0, 0, 0].map(() => bin.extractReal());
+            let rotation = [0, 0, 0].map(() => bin.extractReal());
+            mesh.matrix.makeRotationFromEuler(new THREE.Euler(...rotation));
+            mesh.position.set(...position);
             parent.add(mesh);
         }
 
