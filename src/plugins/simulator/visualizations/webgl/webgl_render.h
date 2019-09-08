@@ -46,7 +46,8 @@ namespace argos {
          m_unPort(8000),
          m_unPeriod(30),
          m_bInteractive(false),
-         m_bStartBrowser(false) {}
+         m_bStartBrowser(false),
+         m_bDirty(true) {}
 
       virtual ~CWebGLRender() {}
 
@@ -77,6 +78,7 @@ namespace argos {
       UInt16 m_unPeriod;
       bool m_bInteractive;
       bool m_bStartBrowser;
+      bool m_bDirty;
       CWebsocketServer* m_pcServer;
       CPlayState m_cPlayState;
    };

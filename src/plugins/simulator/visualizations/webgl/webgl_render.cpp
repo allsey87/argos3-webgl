@@ -74,19 +74,18 @@ namespace argos {
          CallEntityOperation<CWebglSpawnInfo, CWebGLRender, void>(*this, **itEntities);
       }
       auto lastUpdate = std::chrono::steady_clock::now();
-      bool bDirty = true;
       /* loop here until experiment done */
       while(!m_cSimulator.IsExperimentFinished()) {
          if (m_cPlayState.SimulationShouldAdvance()){
             m_cSimulator.UpdateSpace();
-            bDirty = true;
+            m_bDirty = true;
          }
 
-         if (bDirty) {
+         if (m_bDirty) {
             auto elapsed = std::chrono::steady_clock::now() - lastUpdate;
             if (std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() > m_unPeriod) {
                lastUpdate = std::chrono::steady_clock::now();
-               bDirty = false;
+               m_bDirty = false;
                CEntity::TVector& vecEntities = m_cSimulator.GetSpace().GetRootEntityVector();
                for(CEntity::TVector::iterator itEntities = vecEntities.begin();
                   itEntities != vecEntities.end();
@@ -154,6 +153,7 @@ namespace argos {
 
       pcBodyEntity->MoveTo(cNewPos,
                              pcBodyEntity->GetOriginAnchor().Orientation);
+      m_bDirty = true;
    }
 
    /****************************************/
