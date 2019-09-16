@@ -15,6 +15,7 @@
 #include <argos3/core/utility/datatypes/byte_array.h>
 #include <argos3/core/utility/logging/argos_log.h>
 #include <argos3/core/utility/string_utilities.h>
+#include "websocket_server.h"
 
 namespace argos {
 
@@ -32,8 +33,7 @@ namespace argos {
          GetNodeAttributeOrDefault(t_tree, "interactive", m_bInteractive, m_bInteractive);
          GetNodeAttributeOrDefault(t_tree, "period", m_unPeriod, m_unPeriod);
 
-         m_pcServer = new CWebsocketServer(m_strBind, m_unPort, m_strStatic, &m_cPlayState,
-                     std::bind(&CWebGLRender::RecievedMove, this, std::placeholders::_1));
+         m_pcServer = new CWebsocketServer(m_strBind, m_unPort, m_strStatic, &m_cPlayState, this);
          LOG << "[INFO] WebGL visualization started on: "
              << "https://" << m_strBind << ":" << m_unPort << "/" << std::endl
              << "[INFO] Serving the static folder: " << m_strStatic << std::endl;
@@ -46,10 +46,17 @@ namespace argos {
    /****************************************/
    /****************************************/
 
-   void CWebGLRender::SendSpawn(CByteArray c_Data, CComposableEntity& c_entity) {
+   CByteArray* CWebGLRender::GetSpawnMsg(networkId_t u_id) {
+      return m_vecSpawnMessages[u_id].get();
+   }
+
+   /****************************************/
+   /****************************************/
+
+   void CWebGLRender::SendSpawn(std::unique_ptr<CByteArray> c_Data, CComposableEntity& c_entity) {
       m_mapNetworkId[c_entity.GetId()] = m_mapNetworkId.size();
-      m_vecIds.push_back(c_entity.GetId());
-      m_pcServer->SendBinary(c_Data);
+      m_vecSpawnMessages.push_back(std::move(c_Data));
+      m_vecEntites.push_back(&c_entity);
    }
 
    /****************************************/
@@ -66,7 +73,6 @@ namespace argos {
          strStartBrowser += (" https://" + m_strBind + ":" + std::to_string(m_unPort) + "/");
          ::system(strStartBrowser.c_str()); 
       }
-      m_pcServer->waitForConnection();
       CEntity::TVector& vecEntities = m_cSimulator.GetSpace().GetRootEntityVector();
       for(CEntity::TVector::iterator itEntities = vecEntities.begin();
          itEntities != vecEntities.end();
@@ -100,7 +106,10 @@ namespace argos {
       /* at this point we should gracefully close any connections */
    }
 
-   void CWebGLRender::SendUpdates(CByteArray& c_data) {
+   /****************************************/
+   /****************************************/
+
+   void CWebGLRender::SendUpdates(CByteArray* c_data) {// todo change
       m_pcServer->SendBinary(c_data);
    }
 
@@ -128,7 +137,7 @@ namespace argos {
       lwsl_user("MOVING ELEMENT\n");
       UInt32 uNetworkId;
       c_Data >> uNetworkId;
-      std::string strId = m_vecIds[uNetworkId];
+      std::string strId = m_vecEntites[uNetworkId]->GetId();
       LOG << "MOVING ELEMENT: " << strId << std::endl;
       Real fX, fY, fZ;
       c_Data >> fX;

@@ -15,8 +15,8 @@ CWebGLPrototype::CWebGLPrototype() {
 
 void CWebGLPrototype::UpdateInfo(CWebGLRender &c_visualization,
                                  CPrototypeEntity &c_entity) {
-    CByteArray cData;
-    cData << EMessageType::UPDATE
+    CByteArray* pcData = new CByteArray();
+    *pcData << EMessageType::UPDATE
           << c_visualization.getNetworkId(c_entity.GetId());
 
     bool bShouldSend(false);
@@ -31,10 +31,10 @@ void CWebGLPrototype::UpdateInfo(CWebGLRender &c_visualization,
         LOG << "NEW POSITION" << ref.first << std::endl;
         ref.second = cBodyOrientation;
         bShouldSend = true;
-        cData << (UInt8)1;
-        WriteCord(cData, cBodyPosition, cBodyOrientation);
+        *pcData << (UInt8)1;
+        WriteCord(*pcData, cBodyPosition, cBodyOrientation);
     } else {
-        cData << (UInt8)0;
+        *pcData << (UInt8)0;
     }
 
     // TODO check same order guarantee?
@@ -54,13 +54,13 @@ void CWebGLPrototype::UpdateInfo(CWebGLRender &c_visualization,
              cChildPair.first = cPosition;
              cChildPair.second = cBodyOrientation;
             bShouldSend = true;
-            cData << childId;
-            WriteCord(cData, cPosition, cOrientation);
+            *pcData << childId;
+            WriteCord(*pcData, cPosition, cOrientation);
         }
     }
 
     if (bShouldSend)
-        c_visualization.SendUpdates(cData);
+        c_visualization.SendUpdates(pcData);
 }
 
 void CWebGLPrototype::SpawnInfo(CWebGLRender &c_visualization,
@@ -70,9 +70,9 @@ void CWebGLPrototype::SpawnInfo(CWebGLRender &c_visualization,
     const CVector3 &cBodyPosition = cBody.GetOriginAnchor().Position;
     const CQuaternion &cBodyOrientation = cBody.GetOriginAnchor().Orientation;
 
-    CByteArray cData;
-    cData << EMessageType::SPAWN << PROTOTYPE;
-    WriteCord(cData, cBodyPosition, cBodyOrientation);
+    CByteArray* pcData = new CByteArray();
+    *pcData << EMessageType::SPAWN << PROTOTYPE;
+    WriteCord(*pcData, cBodyPosition, cBodyOrientation);
 
     // Save root entity position
     m_mapTransforms[c_entity.GetId()] =
@@ -84,28 +84,28 @@ void CWebGLPrototype::SpawnInfo(CWebGLRender &c_visualization,
          c_entity.GetLinkEquippedEntity().GetLinks()) {
         switch (pcLink->GetGeometry()) {
         case CPrototypeLinkEntity::EGeometry::BOX:
-            cData << (UInt8)0;
+            *pcData << (UInt8)0;
             break;
         case CPrototypeLinkEntity::EGeometry::CYLINDER:
-            cData << (UInt8)1;
+            *pcData << (UInt8)1;
             break;
         case CPrototypeLinkEntity::EGeometry::SPHERE:
-            cData << (UInt8)2;
+            *pcData << (UInt8)2;
             break;
         }
         const CVector3 &cPosition = pcLink->GetAnchor().OffsetPosition;
         const CQuaternion &cOrientation = pcLink->GetAnchor().OffsetOrientation;
 
         // write the scale
-        cData << pcLink->GetExtents().GetX() // Scale
+        *pcData << pcLink->GetExtents().GetX() // Scale
               << pcLink->GetExtents().GetY() << pcLink->GetExtents().GetZ();
-        WriteCord(cData, cPosition, cOrientation);
+        WriteCord(*pcData, cPosition, cOrientation);
 
         // Save child position
         vecChildren.push_back(
             std::pair<CVector3, CQuaternion>(cPosition, cOrientation));
     }
-    c_visualization.SendSpawn(cData, c_entity);
+    c_visualization.SendSpawn(std::move(std::unique_ptr<CByteArray>(pcData)), c_entity);
 }
 
     class CWebGLPrototypeUpdateInfo: public CWebglUpdateInfo {

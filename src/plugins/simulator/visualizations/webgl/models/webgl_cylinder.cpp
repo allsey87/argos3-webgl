@@ -8,8 +8,8 @@ const UInt16 CYLINDER = 1;
     CWebGLCylinder::CWebGLCylinder(){}
 
     void CWebGLCylinder::UpdateInfo(CWebGLRender& c_visualization, CCylinderEntity& c_entity) {
-        CByteArray cData;
-        cData << EMessageType::UPDATE << c_visualization.getNetworkId(c_entity.GetId());
+        CByteArray* pcData = new CByteArray();
+        *pcData << EMessageType::UPDATE << c_visualization.getNetworkId(c_entity.GetId());
 
         CEmbodiedEntity& cBody = c_entity.GetComponent<CEmbodiedEntity>("body");
         const CVector3& cBodyPosition = cBody.GetOriginAnchor().Position;
@@ -19,8 +19,8 @@ const UInt16 CYLINDER = 1;
         if (ref.first != cBodyPosition || !(ref.second == cBodyOrientation)) {
             ref.first = cBodyPosition;
             ref.second = cBodyOrientation;
-            WriteCord(cData, cBodyPosition, cBodyOrientation);
-            c_visualization.SendUpdates(cData);
+            WriteCord(*pcData, cBodyPosition, cBodyOrientation);
+            c_visualization.SendUpdates(pcData);
         }
     }
 
@@ -29,15 +29,15 @@ const UInt16 CYLINDER = 1;
         const CVector3& cBodyPosition = cBody.GetOriginAnchor().Position;
         const CQuaternion& cBodyOrientation = cBody.GetOriginAnchor().Orientation;
 
-        CByteArray cData;
-        cData << EMessageType::SPAWN
+        CByteArray *pcData = new CByteArray();
+        *pcData << EMessageType::SPAWN
               << CYLINDER
               << c_entity.GetRadius()
               << c_entity.GetHeight();
-        WriteCord(cData, cBodyPosition, cBodyOrientation);
+        WriteCord(*pcData, cBodyPosition, cBodyOrientation);
 
         m_mapTransforms[c_entity.GetId()] = std::pair<CVector3, CQuaternion>(cBodyPosition, cBodyOrientation);
-        c_visualization.SendSpawn(cData, c_entity);
+        c_visualization.SendSpawn(std::move(std::unique_ptr<CByteArray>(pcData)), c_entity);
     }
 
     class CWebglCylinderUpdateInfo: public CWebglUpdateInfo {

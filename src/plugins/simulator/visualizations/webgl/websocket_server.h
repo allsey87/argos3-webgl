@@ -1,24 +1,31 @@
 #ifndef WEBSOCKET_SERVER
 #define WEBSOCKET_SERVER
 
-#include <list>
 #include <libwebsockets.h>
 #include <argos3/core/utility/datatypes/datatypes.h>
 #include <argos3/core/utility/datatypes/byte_array.h>
 #include <argos3/core/utility/logging/argos_log.h>
+#include "webgl_render.h"
 #include <functional>
+#include "play_state.h"
+
 namespace argos {
 
 int my_callback(struct lws *wsi, enum lws_callback_reasons reason,
                        void *user, void *in, size_t len);
 
-struct SPerSessionData {
-    struct lws *wsi;
+struct SMessage {
+    CByteArray* data;
+    lws_write_protocol type;
 };
 
-struct ToSend {
-    CByteArray data;
-    lws_write_protocol type;
+struct SPerSessionData {
+    struct lws *m_psWSI;
+    UInt32 m_uLastSpawnedNetId; // TODO: network id
+    UInt32 m_uRingTail;
+    bool m_bKicked;
+    SMessage m_psCurrentMessage;
+    size_t m_uSent;
 };
 
 namespace EClientMessageType {
@@ -29,40 +36,12 @@ namespace EClientMessageType {
     const UInt8 MOVE=4;
 };
 
-class CPlayState {
-private:
-    bool m_bIsAutomatic;
-    UInt32 m_unFramesToPlay;
-public:
-    void Pause() {
-        m_unFramesToPlay = 0;
-        m_bIsAutomatic = false;
-    }
-
-    void Frame() {
-        m_bIsAutomatic = false;
-        ++m_unFramesToPlay;
-    }
-
-    bool Automatic() {
-        m_unFramesToPlay = 0;
-        m_bIsAutomatic = true;
-    }
-
-    bool SimulationShouldAdvance() {
-        if (m_bIsAutomatic) return true;
-        if (m_unFramesToPlay == 0) return false;
-        --m_unFramesToPlay;
-        return true;
-    }
-};
-
 
 class CWebsocketServer {
 public:
     CWebsocketServer(std::string str_HostName, UInt16 un_Port,
         std::string str_Static, CPlayState* pc_paly_state,
-        std::function<void(CByteArray&)> c_moveCallback);
+        CWebGLRender* pc_visualization);
     
     /**
      * Will be used on multithread
@@ -78,22 +57,28 @@ public:
     /**
      * Send binary data
     */
-    void SendBinary(CByteArray data);
+    void SendBinary(CByteArray* data);
 
     /**
      * Send text data
      **/
-    void SendText(std::string send);
+    void SendText(const std::string& send);
 
-    int Callback(SPerSessionData *ps_session_data, lws_callback_reasons e_reason,
+    int Callback(SPerSessionData *ps_wsi, lws_callback_reasons e_reason,
     UInt8* ch, size_t len);
-    
-    void waitForConnection();
-    
+
     ~CWebsocketServer();
 
+    typedef std::vector<SPerSessionData*>::iterator TIterCleints;
+
 private:
-    void RecievedMessage();
+    void ReceivedMessage(SMessage *ps_msg);
+    void EnsureRingSpace();
+    /**
+     * return true if the message is entirely sent
+     *
+     **/
+    bool WriteMessage(SPerSessionData*, const SMessage*);
 
 private:
     std::string m_strHostName;
@@ -101,11 +86,10 @@ private:
     UInt16 m_unPort;
     struct lws_context *m_psContext;
     bool m_bStop;
-    SPerSessionData* m_sClient;
-    std::list<ToSend> m_MessageQueue;
+    std::vector<SPerSessionData*> m_vecClients;
     CPlayState* m_pcPalyState;
-    std::function<void(CByteArray&)> m_cMoveCallback;
-    CByteArray m_cCurrentMessage;
+    CWebGLRender* m_pcVisualization;
+    lws_ring* m_psRingBuffer;
 };
 
 struct SDataPerVhost {

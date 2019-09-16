@@ -11,8 +11,8 @@ const UInt16 BOX = 0;
     }
 
     void CWebGLBox::UpdateInfo(CWebGLRender& c_visualization, CBoxEntity& c_entity) {
-        CByteArray cData;
-        cData << EMessageType::UPDATE << c_visualization.getNetworkId(c_entity.GetId());
+        CByteArray* pcData = new CByteArray();
+        *pcData << EMessageType::UPDATE << c_visualization.getNetworkId(c_entity.GetId());
 
         CEmbodiedEntity& cBody = c_entity.GetComponent<CEmbodiedEntity>("body");
         const CVector3& cBodyPosition = cBody.GetOriginAnchor().Position;
@@ -22,27 +22,27 @@ const UInt16 BOX = 0;
         if (ref.first != cBodyPosition || !(ref.second == cBodyOrientation)) {
             ref.first = cBodyPosition;
             ref.second = cBodyOrientation;
-            WriteCord(cData, cBodyPosition, cBodyOrientation);
+            WriteCord(*pcData, cBodyPosition, cBodyOrientation);
             // !!! TODO sendposition or here?
-            c_visualization.SendUpdates(cData);
+            c_visualization.SendUpdates(pcData);
         }
     }
 
     void CWebGLBox::SpawnInfo(CWebGLRender& c_visualization, CBoxEntity& c_entity){
-        CByteArray cData;
+        CByteArray* pcData = new CByteArray();
         CEmbodiedEntity& cBody = c_entity.GetComponent<CEmbodiedEntity>("body");
         CVector3& cBodyPosition = cBody.GetOriginAnchor().Position;
         const CQuaternion& cBodyOrientation = cBody.GetOriginAnchor().Orientation;
 
         auto sSize = c_entity.GetSize();
-        cData << EMessageType::SPAWN
+        (*pcData) << EMessageType::SPAWN
               << BOX
               << sSize.GetX() 
               << sSize.GetY()
               << sSize.GetZ();
-        WriteCord(cData, cBodyPosition, cBodyOrientation);
-        LOG << "SPAWN BOX " << cData.Size() << std::endl;
-        c_visualization.SendSpawn(cData, c_entity);
+        WriteCord(*pcData, cBodyPosition, cBodyOrientation);
+        LOG << "SPAWN BOX " << pcData->Size() << std::endl;
+        c_visualization.SendSpawn(std::move(std::unique_ptr<CByteArray>(pcData)), c_entity);
     }
 
     class CWebglBoxUpdateInfo: public CWebglUpdateInfo {

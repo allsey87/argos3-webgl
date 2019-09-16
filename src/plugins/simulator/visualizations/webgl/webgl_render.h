@@ -12,13 +12,17 @@ namespace argos {
 }
 
 #include <map>
+#include <memory>
 #include <argos3/core/simulator/visualization/visualization.h>
 #include <argos3/core/simulator/entity/entity.h>
 #include <argos3/core/utility/math/vector3.h>
 #include <argos3/core/utility/math/quaternion.h>
-#include "websocket_server.h"
+#include "play_state.h"
+#include <argos3/core/utility/datatypes/byte_array.h>
 
 namespace argos {
+
+   class CWebsocketServer;
 
    class CWebglUpdateInfo: public CEntityOperation<CWebglUpdateInfo, CWebGLRender, void> {
    public:
@@ -59,20 +63,28 @@ namespace argos {
 
       virtual void Destroy();
 
-      virtual void SendUpdates(CByteArray& c_entity);
-      virtual void SendSpawn(CByteArray c_Data, CComposableEntity& c_entity);
+      virtual void SendUpdates(CByteArray* c_entity);
+      virtual void SendSpawn(std::unique_ptr<CByteArray> c_Data, CComposableEntity& c_entity);
+      virtual CByteArray* GetSpawnMsg(networkId_t);
       void RecievedMove(CByteArray& c_Data);
 
-      networkId_t getNetworkId(const std::string& str_id) {
-         return m_mapNetworkId[str_id];
+      networkId_t getNetworkId(const std::string& str_id) const {
+         return m_mapNetworkId.at(str_id);
       }
+
+      size_t GetRootEntitiesCount() const {
+         return m_vecEntites.size();
+      }
+
+      void WriteSpawn(CByteArray&, networkId_t);
       
    private:
       CSimulator& m_cSimulator;
 
       std::string m_strBind;
       std::string m_strStatic;
-      std::vector<std::string> m_vecIds;
+      std::vector<CComposableEntity*> m_vecEntites;
+      std::vector<std::unique_ptr<CByteArray>> m_vecSpawnMessages;
       std::map<std::string, networkId_t> m_mapNetworkId;
       UInt16 m_unPort;
       UInt16 m_unPeriod;
@@ -84,14 +96,14 @@ namespace argos {
    };
 
    inline void WriteCord(CByteArray& cData, const CVector3& c_position, const CQuaternion& c_orientation) {
-        CRadians cZAngle, cYAngle, cXAngle;
-        c_orientation.ToEulerAngles(cZAngle, cYAngle, cXAngle);
-        cData << c_position.GetX()
-              << c_position.GetY()
-              << c_position.GetZ()
-              << cXAngle.GetValue()
-              << cYAngle.GetValue()
-              << cZAngle.GetValue();
+      CRadians cZAngle, cYAngle, cXAngle;
+      c_orientation.ToEulerAngles(cZAngle, cYAngle, cXAngle);
+      cData << c_position.GetX()
+            << c_position.GetY()
+            << c_position.GetZ()
+            << cXAngle.GetValue()
+            << cYAngle.GetValue()
+            << cZAngle.GetValue();
     }
 
    // enumeration problem 

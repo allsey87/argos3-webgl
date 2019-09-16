@@ -1,4 +1,5 @@
 #include "websocket_server.h"
+#include <algorithm>
 
 #define MY_PROTOCOL                                                            \
     { "spawn-objects", my_callback, sizeof(SPerSessionData), 1024, 0, NULL, 0 }
@@ -39,11 +40,17 @@ struct lws_protocol_vhost_options ACCESS_CONTROL_REQUEST_HEADERS = {
     /*next*/ &ACCESS_CONTROL_ALLOW_ORIGIN,
     /*options*/ nullptr, "access-control-request-headers:", "*"};
 
+static void __destroy_message(void *ps_message) {
+    SMessage* psMessage = reinterpret_cast<SMessage*>(ps_message);
+    delete psMessage->data;
+}
+
 CWebsocketServer::CWebsocketServer(std::string str_HostName, UInt16 un_Port,
                                    std::string str_Static, CPlayState* pc_paly_state,
-                                   std::function<void(CByteArray&)> c_moveCallback)
+                                   CWebGLRender* pc_visualization)
     : m_strHostName(str_HostName), m_strStatic(str_Static), m_unPort(un_Port),
-    m_sClient(nullptr), m_pcPalyState(pc_paly_state), m_cMoveCallback(c_moveCallback) {
+    m_pcPalyState(pc_paly_state), m_pcVisualization(pc_visualization),
+    m_psRingBuffer(lws_ring_create(sizeof(SMessage), 80, __destroy_message)) {
     struct lws_context_creation_info sInfo;
     memset(&sInfo, 0, sizeof sInfo);
     MOUNT_SETTINGS.origin = m_strStatic.c_str();
@@ -66,72 +73,147 @@ void CWebsocketServer::Run() {
     }
 }
 
-void CWebsocketServer::waitForConnection() {
-    while (m_sClient == nullptr) {
-        Step();
+void CWebsocketServer::Step() { lws_service(m_psContext, 10); }
+
+void CWebsocketServer::SendBinary(CByteArray* c_data) {
+    if (m_vecClients.empty()) {
+        return;
+    }
+    EnsureRingSpace();
+    SMessage psMsg{c_data, LWS_WRITE_BINARY};
+    lws_ring_insert(m_psRingBuffer, &psMsg, 1);
+    lws_callback_on_writable_all_protocol(m_psContext, PROTOCOLS + 1);
+}
+
+void CWebsocketServer::EnsureRingSpace() {
+    if (lws_ring_get_count_free_elements(m_psRingBuffer) == 0) {
+        // Kick lagging clients
+        UInt32 uOldestTail = lws_ring_get_oldest_tail(m_psRingBuffer);
+        UInt32 uMaxWaitingTail = 0;
+        UInt64 uMaxWaiting = 0;
+        SPerSessionData* psOldestSession = nullptr;
+
+        for (TIterCleints tIter = m_vecClients.begin(); tIter != m_vecClients.end();) {
+            SPerSessionData* psSession = *tIter;
+
+            if (psSession->m_uRingTail == uOldestTail) {
+                psOldestSession = psSession;
+                LOGERR << "Kicking lagging client" << std::endl;
+                psSession->m_bKicked = true;
+                tIter = m_vecClients.erase(tIter);
+                continue;
+                // lws_set_timeout(psSession->m_psWSI, PENDING_TIMEOUT_LAGGING, LWS_TO_KILL_SYNC);
+            } else {
+                UInt64 uWaiting = lws_ring_get_count_waiting_elements(m_psRingBuffer, &(psSession->m_uRingTail));
+                uMaxWaitingTail = psSession->m_uRingTail;
+                if (uWaiting > uMaxWaiting) uMaxWaiting = uWaiting;
+            }
+            tIter++;
+        }
+        lws_ring_update_oldest_tail(m_psRingBuffer, uMaxWaitingTail);
+        /*
+        lws_ring_consume(m_psRingBuffer, &psOldestSession->m_uRingTail, NULL, 
+            lws_ring_get_count_waiting_elements(m_psRingBuffer, &uOldestTail));
+        lws_ring_update_oldest_tail(m_psRingBuffer, psOldestSession->m_uRingTail);
+        */
     }
 }
 
-void CWebsocketServer::Step() { lws_service(m_psContext, 10); }
+void CWebsocketServer::SendText(const std::string& send) {
+    EnsureRingSpace();
+    CByteArray* pcData = new CByteArray();
+    (*pcData) << send;
+    pcData->Resize(pcData->Size() - 1);
 
-void CWebsocketServer::SendBinary(CByteArray c_data) {
-    m_MessageQueue.push_back({c_data, LWS_WRITE_BINARY});
+    SMessage psMsg{pcData, LWS_WRITE_TEXT};
+    lws_ring_insert(m_psRingBuffer, &psMsg, 1);
     lws_cancel_service(m_psContext);
 }
 
-void CWebsocketServer::SendText(std::string send) {
-    CByteArray cData;
-    cData << send;
-    cData.Resize(cData.Size() - 1); // avoid having a \0
-    m_MessageQueue.push_back({cData, LWS_WRITE_TEXT});
-    lws_cancel_service(m_psContext);
-}
 
-int CWebsocketServer::Callback(SPerSessionData *ps_session_data, lws_callback_reasons e_reason,
-            UInt8* un_bytes, size_t len) {
+int CWebsocketServer::Callback(SPerSessionData *ps_session, lws_callback_reasons e_reason,
+            UInt8* un_bytes, size_t u_len) {
+    
     switch (e_reason) {
     case LWS_CALLBACK_ESTABLISHED:
-        if (m_sClient != nullptr) {
-            lwsl_user("Already has a connection\n");
-        } else {
-            m_sClient = ps_session_data;
-        }
-        lws_callback_on_writable(ps_session_data->wsi);
+        m_vecClients.push_back(ps_session);
+        ps_session->m_uLastSpawnedNetId = 0; // maybe the already 0 at allocation
+        ps_session->m_bKicked = false;
+        ps_session->m_uSent = 0;
+        ps_session->m_psCurrentMessage.data = new CByteArray();
+        lws_callback_on_writable(ps_session->m_psWSI);
         break;
     case LWS_CALLBACK_PROTOCOL_DESTROY:
         m_bStop = true;
         break;
     case LWS_CALLBACK_CLOSED:
-        if (ps_session_data == m_sClient) {
-            lwsl_user("Browser disconnected\n");
-            m_sClient = nullptr;
-        }
+        delete ps_session->m_psCurrentMessage.data;
+        if (ps_session->m_bKicked) break;
+        m_vecClients.erase(std::find(m_vecClients.begin(), m_vecClients.end(), ps_session));
         break;
     case LWS_CALLBACK_SERVER_WRITEABLE:
-        if (ps_session_data != m_sClient) {
-            lwsl_user("Kicking. On writable\n");
-            return -1;
-        }
-        if (!m_MessageQueue.empty()) {
-            auto a = m_MessageQueue.front();
-            size_t size = a.data.Size();
-            UInt8 buffer[size + LWS_PRE];
-            a.data.FetchBuffer(buffer + LWS_PRE, size);
-            lws_write(ps_session_data->wsi, buffer + LWS_PRE, size, a.type);
-            m_MessageQueue.pop_front();
-            if (!m_MessageQueue.empty()) {
-                lws_callback_on_writable(ps_session_data->wsi);
+        if (ps_session->m_bKicked) return -1;
+
+        if (ps_session->m_uLastSpawnedNetId < m_pcVisualization->GetRootEntitiesCount()) {
+
+            CByteArray* pcData = m_pcVisualization->GetSpawnMsg(ps_session->m_uLastSpawnedNetId);
+            SMessage sMessage = {pcData, LWS_WRITE_BINARY};
+
+            if (WriteMessage(ps_session, &sMessage)) {
+                ps_session->m_uLastSpawnedNetId += 1;
+                // the client finished spawning all entities
+                if (ps_session->m_uLastSpawnedNetId == m_pcVisualization->GetRootEntitiesCount()) {
+                    ps_session->m_uRingTail = lws_ring_get_oldest_tail(m_psRingBuffer);
+                }
             }
+            lws_callback_on_writable(ps_session->m_psWSI);
+        } else {
+
+            const SMessage* sMessage = reinterpret_cast<const SMessage*>(
+                lws_ring_get_element(m_psRingBuffer, &ps_session->m_uRingTail));
+            lws_ring_get_count_waiting_elements(m_psRingBuffer, &ps_session->m_uRingTail);
+            if (!sMessage) break;
+
+            if (WriteMessage(ps_session, sMessage)) {
+                lws_ring_consume(m_psRingBuffer, &ps_session->m_uRingTail, NULL, 1);
+            } else {
+                lws_callback_on_writable(ps_session->m_psWSI);
+                break;
+            }
+
+            size_t uOldestRemain = lws_ring_get_count_waiting_elements(m_psRingBuffer, &m_vecClients[0]->m_uRingTail);
+            UInt32 tOldestTail = m_vecClients[0]->m_uRingTail;
+
+            for (TIterCleints tIter = m_vecClients.begin() + 1; tIter != m_vecClients.end(); ++tIter) {
+                // ignore users who are still receiving spawn messages
+                if ((*tIter)->m_uLastSpawnedNetId < ps_session->m_uLastSpawnedNetId) continue;
+                size_t uCurrentRemain = lws_ring_get_count_waiting_elements(m_psRingBuffer, &((*tIter)->m_uRingTail));
+                if (uCurrentRemain > uOldestRemain) {
+                    uOldestRemain = uCurrentRemain;
+                    tOldestTail = (*tIter)->m_uRingTail;
+                }
+            }
+            lws_ring_update_oldest_tail(m_psRingBuffer, tOldestTail);
+
+            if (lws_ring_get_element(m_psRingBuffer, &ps_session->m_uRingTail))
+                lws_callback_on_writable(ps_session->m_psWSI);
         }
         break;
     case LWS_CALLBACK_EVENT_WAIT_CANCELLED:
-        if (m_sClient) lws_callback_on_writable(m_sClient->wsi);
+        for (TIterCleints tIter = m_vecClients.begin(); tIter != m_vecClients.end(); ++tIter) {
+            if (lws_ring_get_count_waiting_elements(m_psRingBuffer, &((*tIter)->m_uRingTail)))
+                lws_callback_on_writable((*tIter)->m_psWSI);
+        }
         break;
     case LWS_CALLBACK_RECEIVE:
-        m_cCurrentMessage.AddBuffer(un_bytes, len);
-        if (lws_is_final_fragment(ps_session_data->wsi)) {
-            RecievedMessage();
-            m_cCurrentMessage.Clear();
+        ps_session->m_psCurrentMessage.data->AddBuffer(un_bytes, u_len);
+
+        if (lws_is_final_fragment(ps_session->m_psWSI)) {
+            ps_session->m_psCurrentMessage.type = lws_frame_is_binary(ps_session->m_psWSI)
+                ? LWS_WRITE_BINARY
+                : LWS_WRITE_TEXT;
+            ReceivedMessage(&ps_session->m_psCurrentMessage);
+            ps_session->m_psCurrentMessage.data->Clear();
         }
         break;
     default:
@@ -141,34 +223,39 @@ int CWebsocketServer::Callback(SPerSessionData *ps_session_data, lws_callback_re
     return 0;
 }
 
-void CWebsocketServer::RecievedMessage() {
-        lwsl_user("Recieved size: %d\n", m_cCurrentMessage.Size());
+
+bool CWebsocketServer::WriteMessage(SPerSessionData* ps_session, const SMessage* ps_message) {
+    size_t uToSend = ps_message->data->Size() - ps_session->m_uSent;
+    // the LWS_PRE first bytes are for libwebsocket
+    UInt8 buffer[uToSend + LWS_PRE];
+    UInt8* uSrc = ps_message->data->ToCArray() + ps_session->m_uSent;
+    memcpy(buffer + LWS_PRE, uSrc, uToSend);
+
+    size_t uSent = static_cast<size_t>(lws_write(ps_session->m_psWSI, buffer + LWS_PRE, uToSend, ps_message->type));//ps_message->type);
+    if (uSent == uToSend) {
+        ps_session->m_uSent = 0;
+        return true;
+    }
+    ps_session->m_uSent += uSent;
+    return false;
+}
+
+void CWebsocketServer::ReceivedMessage(SMessage *ps_msg) {
+        lwsl_user("Received size: %lu\n", ps_msg->data->Size());
         UInt8 unMessageType;
-        m_cCurrentMessage >> unMessageType;
+        *(ps_msg->data) >> unMessageType;
         switch(unMessageType) {
             case EClientMessageType::PAUSE:
-                lwsl_user("PAUSE\n");
                 m_pcPalyState->Pause();
             break;
-
             case EClientMessageType::AUTO:
-                lwsl_user("AUTO\n");
                 m_pcPalyState->Automatic();
             break;
             case EClientMessageType::STEP:
-                lwsl_user("STEP\n");
                 m_pcPalyState->Frame();
             break;
             case EClientMessageType::MOVE:
-                lwsl_user("MOVE \n");
-                if (m_cMoveCallback) {
-                    lwsl_user("YES\n");
-                    LOG << "Callback is set" << std::endl;
-                } else {
-                    lwsl_user("NO\n");
-                    LOG << "Callback is unset" << std::endl;
-                }
-                m_cMoveCallback(m_cCurrentMessage);
+                m_pcVisualization->RecievedMove(*(ps_msg->data));
                 break;
         default:
             lwsl_err("Unknown message type\n");
@@ -194,17 +281,15 @@ int my_callback(lws *ps_wsi, enum lws_callback_reasons e_reason, void *user,
         ps_vhd->vhost = lws_get_vhost(ps_wsi);
         ps_vhd->server = reinterpret_cast<CWebsocketServer *>(
             lws_context_user(ps_vhd->context));
+        LOG << ps_vhd << std::endl;
     } else {
         SDataPerVhost *ps_vhd =
             reinterpret_cast<SDataPerVhost *>(lws_protocol_vh_priv_get(
                 lws_get_vhost(ps_wsi), lws_get_protocol(ps_wsi)));
         SPerSessionData *ps_SessionData =
             reinterpret_cast<SPerSessionData *>(user);
-
-        if (!ps_vhd) { // Not initialized
-            return 0;
-        } else if (e_reason == LWS_CALLBACK_ESTABLISHED) {
-            ps_SessionData->wsi = ps_wsi;
+        if (e_reason == LWS_CALLBACK_ESTABLISHED) {
+            ps_SessionData->m_psWSI = ps_wsi;
         }
         return ps_vhd->server->Callback(ps_SessionData, e_reason, (UInt8*) in, un_len);
     }
