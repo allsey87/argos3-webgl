@@ -117,6 +117,7 @@ void CWebGLPrototype::SpawnInfo(CWebGLRender &c_visualization,
         }
         const CVector3 &cPosition = pcLink->GetAnchor().OffsetPosition;
         const CQuaternion &cOrientation = pcLink->GetAnchor().OffsetOrientation;
+        cJsonStream << "\"name\":\"" << pcLink->GetId() << "\",";
 
         WriteCord(cJsonStream, cPosition, cOrientation);
         cJsonStream << ",\"scale\": ["

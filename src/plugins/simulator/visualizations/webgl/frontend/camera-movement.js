@@ -121,7 +121,7 @@ const XY_PLANE = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
 let sel;
 const MAX_DISTANCE_CLICK = 30;
 // MOUSE
-document.addEventListener("mousemove", onMouseMove, false);
+renderer.domElement.addEventListener("mousemove", onMouseMove, false);
 renderer.domElement.addEventListener("mousedown", onMouseDown, false);
 renderer.domElement.addEventListener("mouseup", onMouseUp, false);
 renderer.domElement.addEventListener("click", (ev) => {
@@ -173,5 +173,5 @@ renderer.domElement.addEventListener("click", (ev) => {
 },false);
 // KEYBOARD
 MAINLOOP.addCallback(move);
-document.addEventListener("keyup", onKeyUp, false);
-document.addEventListener("keydown", onKeyDown, false);
+renderer.domElement.addEventListener("keyup", onKeyUp, false);
+renderer.domElement.addEventListener("keydown", onKeyDown, false);

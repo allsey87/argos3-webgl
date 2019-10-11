@@ -5,16 +5,13 @@ var renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 renderer.domElement.oncontextmenu = (m) => false;
+renderer.domElement.setAttribute("tabindex", 1);
 
 // for the chrome extension
 // https://chrome.google.com/webstore/detail/threejs-inspector/dnhjfclbfhcbcdfpjaeacomhbdfjbebi
 window.scene = scene;
 window.THREE = THREE;
 
-// LIGHT
-scene.add(new THREE.AmbientLight(0xababab));
-scene.add(new THREE.HemisphereLight(0xababab, 0x080820, 0.9));
-scene.add(new THREE.DirectionalLight(0xffffff, 0.5));
 scene.background = new THREE.Color(0x454545);
 
 
@@ -43,14 +40,77 @@ class MainLoop {
     }
 }
 
+class ObjectsContainer {
+    constructor() {
+        this.objects = [];
+        this.typeIds = [];
+        this.populateScene();
+    }
+
+    populateScene() {
+        scene.add(new THREE.AmbientLight(0xababab));
+        scene.add(new THREE.HemisphereLight(0xababab, 0x080820, 0.9));
+        scene.add(new THREE.DirectionalLight(0xffffff, 0.5));
+    }
+
+    reset() {
+        let notLight = scene.children.filter((el) => !(el instanceof THREE.Light));
+        scene.remove.apply(scene, notLight);
+        this.objects = [];
+        this.typeIds = [];
+    }
+
+    spawn = (data) => {
+        const object = SPAWNS[data.type](data);
+        object.name = data.name;
+        this.typeIds.push(TYPES_IDS[data.type]);
+        object.netId = this.objects.length;
+        this.objects.push(object);
+        scene.add(object);
+    }
+
+    updateCallback = (networkId, bin) => {
+        const type = this.typeIds[networkId];
+        let updateMethod;
+        switch(type) {
+            case 0: // BOX
+            case 1: // CYLINDER
+                updateMethod = this.basicUpdateCallback;
+                break;
+            case 3: // PROTOTYPE
+                updateMethod = this.prototypeUpdateCallback;
+                break;
+            default:
+                console.warn("Unknown type id:" + type);
+                return;
+        }
+        updateMethod(networkId, bin);
+    }
+
+    prototypeUpdateCallback = (networkId, bin) => {
+        if (!!bin.extractUint8()) {
+            this.basicUpdateCallback(networkId, bin);
+        }
+        const parent = this.objects[networkId];
+        while (!bin.isConsumed()) {
+            const mesh = parent.children[bin.extractUint8()];
+            setTransformFromBin(mesh, bin);
+        }
+    }
+
+    basicUpdateCallback = (networkId, bin) => {
+        setTransformFromBin(this.objects[networkId], bin);
+    }
+}
+
 const MAINLOOP = new MainLoop();
 MAINLOOP.animate();
 
 
 const LOADED_GLTF = {}
-const OBJECTS = [];
-const TYPES = [];
-let obj = null;
+const OBJECTS = new ObjectsContainer();
+
+
 function load(e, name) {
     LOADED_GLTF[name] = e;
     e.scene.scale.set(0.1, 0.1, 0.1);
@@ -64,12 +124,6 @@ const TYPES_IDS = {
     "cylinder": 1,
     "prototype": 3,
 }
-
-const UPDATES = {
-    0: basicUpdateCallback,
-    1: basicUpdateCallback,
-    3: prototypeUpdateCallback
-};
 
 const PROTOTYPE_GEOMETRIES = {
     "box": THREE.BoxGeometry,
@@ -102,13 +156,14 @@ const SPAWNS = {
         setTransform(parent, data);
 
         for (let child of data.children) {
-            const {type, scale, position, rotation} = child;
+            const {type, scale, position, rotation, name} = child;
             const geometry = new PROTOTYPE_GEOMETRIES[type](...scale);
             const material = new THREE.MeshStandardMaterial({ color: 0x1af055 });
 
             const mesh = new THREE.Mesh(geometry, material);
             mesh.matrix.makeRotationFromEuler(new THREE.Euler(...rotation));
             mesh.position.set(...position);
+            mesh.name = name;
             parent.add(mesh);
         }
 
@@ -127,40 +182,12 @@ function setTransform(mesh, {position, rotation}) {
     mesh.rotation.set(...rotation);
 }
 
-function spawn(data) {
-    let object = SPAWNS[data.type](data);
-    object.name = data.name;
-    TYPES.push(TYPES_IDS[data.type]);
-    object.netId = OBJECTS.length;
-    OBJECTS.push(object);
-    scene.add(object);
-}
-
-function prototypeUpdateCallback(networkId, bin) {
-    if (!!bin.extractUint8()) {
-        basicUpdateCallback(networkId, bin);
-    }
-    let parent = OBJECTS[networkId];
-    while (!bin.isConsumed()) {
-        let mesh = parent.children[bin.extractUint8()];
-        setTransformFromBin(mesh, bin);
-    }
-}
-
-function basicUpdateCallback(networkId, bin) {
-    setTransformFromBin(OBJECTS[networkId], bin);
-}
-
-function updateCallback(networkId, bin) {
-    let type = TYPES[networkId];
-    UPDATES[type](networkId, bin);
-}
-
 function connect() {
     if (websocket) {
         websocket.websocket.close();
     }
-    websocket = new Client(uri.value, load, spawn, updateCallback);
+    OBJECTS.reset();
+    websocket = new Client(uri.value, load, OBJECTS.spawn, OBJECTS.updateCallback);
 }
 
 document.getElementById("connect").addEventListener("click", connect);

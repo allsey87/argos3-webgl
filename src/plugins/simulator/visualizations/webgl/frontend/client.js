@@ -25,17 +25,6 @@ class Client {
 
     onOpen(evt) {
         console.log("open");
-        /*
-         * Spawn the duck from gltf model
-         */
-        var loader = new THREE.GLTFLoader();
-        const path = 'models/Duck.glb';
-        this.url.pathname = path;
-
-        loader.load(this.url.href, (e) => {
-           this.loadCallback(e, name);
-           console.log("Loaded");
-        });
     }
 
     onClose(evt) {

@@ -5,52 +5,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Websocket client</title>
+    <!-- UIkit CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/uikit/3.2.0/css/uikit.min.css" />
+
+    <!-- UIkit JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/uikit/3.2.0/js/uikit.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/uikit/3.2.0/js/uikit-icons.min.js"></script>
     <style>
-        canvas {
-            width: 100%;
-            height: 100%;
-        }
-        .top {
-            display: flex;
-            flex-direction: row;
-        }
-        .help-text {
-            display: none;
-            position: absolute;
-            border-style: solid;
-            border-width: 2px;
-            z-index: 10;
-        }
-        #help {
-            color: red;
-            border-style: solid;
-            border-radius: 100%;
-        }
-        #help:hover {
-            color: yellow;
-        }
-        #help:hover > .help-text {
-            display: block;
-        }
-    </style>
+            canvas {
+                width: 100%;
+                height: 100%;
+            }
+            .top {
+                display: flex;
+                flex-direction: row;
+            }
+        </style>
 </head>
 <body>
     
     <div class="top">
-        <input type="text" id="uri" value="ws://localhost:8000">
-        <button id="connect">Connect</button>
-        <button id="sendStep" onclick="websocket.sendStep()">Step</button>
-        <button id="sendAuto" onclick="websocket.sendAuto()">Play</button>
-        <button id="sendPause" onclick="websocket.sendPause()">Pause</button>
-        <div id="help">?
-            <div class="help-text">
+        <input type="text" id="uri" class="uk-input"/>
+        <button class="uk-button uk-button-default" id="connect">Connect</button>
+        <button class="uk-button uk-button-default" id="sendStep" onclick="websocket.sendStep()">Step</button>
+        <button class="uk-button uk-button-default" id="sendAuto" onclick="websocket.sendAuto()">Play</button>
+        <button class="uk-button uk-button-default" id="sendPause" onclick="websocket.sendPause()">Pause</button>
+        <a class="uk-button uk-button-default" href="#modal-center" uk-toggle>Help</a>
+        <div id="modal-center" class="uk-flex-top" uk-modal>
+            <div class="uk-modal-dialog uk-modal-body uk-margin-auto-vertical">
+                <button class="uk-modal-close-default" type="button" uk-close></button>
                 Keys:
                 <ul>
                     <li>Arrows key to navigate the camera</li>
-                    <li>U button to update camera's rotation axis
-                        to become the current camera's top and current camera'
-                        right
-                    </li>
+                    <li>Select objects by clicking on them</li>
+                    <li>Selected item can be moved after clicking on the ground</li>
                 </ul>
             </div>
         </div>
@@ -59,7 +47,9 @@
         let winUrl = new URL(window.location.href);
         winUrl.protocol = "ws";
         document.getElementById("uri").value = winUrl;
-</script>
+    </script>
+    <ul class="uk-list uk-list-line" id="list">
+    </ul>
 
 <script>
     let module = {};
