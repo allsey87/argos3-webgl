@@ -119,10 +119,10 @@ void CWebsocketServer::EnsureRingSpace() {
     }
 }
 
-void CWebsocketServer::SendText(const std::string& send) {
+void CWebsocketServer::SendText(const std::string& std_send) {
     EnsureRingSpace();
     CByteArray* pcData = new CByteArray();
-    (*pcData) << send;
+    (*pcData) << std_send;
     pcData->Resize(pcData->Size() - 1);
 
     SMessage psMsg{pcData, LWS_WRITE_TEXT};
@@ -157,7 +157,7 @@ int CWebsocketServer::Callback(SPerSessionData *ps_session, lws_callback_reasons
         if (ps_session->m_uLastSpawnedNetId < m_pcVisualization->GetRootEntitiesCount()) {
 
             CByteArray* pcData = m_pcVisualization->GetSpawnMsg(ps_session->m_uLastSpawnedNetId);
-            SMessage sMessage = {pcData, LWS_WRITE_BINARY};
+            SMessage sMessage = {pcData, LWS_WRITE_TEXT};
 
             if (WriteMessage(ps_session, &sMessage)) {
                 ps_session->m_uLastSpawnedNetId += 1;

@@ -105,6 +105,19 @@ namespace argos {
             << cYAngle.GetValue()
             << cZAngle.GetValue();
     }
+   
+   inline void WriteCord(std::stringstream& cData, const CVector3& c_position, const CQuaternion& c_orientation) {
+      CRadians cZAngle, cYAngle, cXAngle;
+      c_orientation.ToEulerAngles(cZAngle, cYAngle, cXAngle);
+      cData << "\"position\":[" 
+            << c_position.GetX() << ','
+            << c_position.GetY() << ','
+            << c_position.GetZ() << "],"
+            << "\"rotation\":["
+            << cXAngle.GetValue() << ','
+            << cYAngle.GetValue() << ','
+            << cZAngle.GetValue() << ']';
+    }
 
    // enumeration problem 
    namespace EMessageType {

@@ -73,7 +73,8 @@ namespace argos {
          strStartBrowser += (" https://" + m_strBind + ":" + std::to_string(m_unPort) + "/");
          ::system(strStartBrowser.c_str()); 
       }
-      CEntity::TVector& vecEntities = m_cSimulator.GetSpace().GetRootEntityVector();
+      CSpace& cSpace = m_cSimulator.GetSpace();
+      CEntity::TVector& vecEntities = cSpace.GetRootEntityVector();
       for(CEntity::TVector::iterator itEntities = vecEntities.begin();
          itEntities != vecEntities.end();
          ++itEntities) {
@@ -92,7 +93,7 @@ namespace argos {
             if (std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() > m_unPeriod) {
                lastUpdate = std::chrono::steady_clock::now();
                m_bDirty = false;
-               CEntity::TVector& vecEntities = m_cSimulator.GetSpace().GetRootEntityVector();
+               CEntity::TVector& vecEntities = cSpace.GetRootEntityVector();
                for(CEntity::TVector::iterator itEntities = vecEntities.begin();
                   itEntities != vecEntities.end();
                   ++itEntities) {

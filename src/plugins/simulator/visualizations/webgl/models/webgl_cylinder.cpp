@@ -24,19 +24,31 @@ const UInt16 CYLINDER = 1;
         }
     }
 
+    /**
+     * { "messageType": "spawn", "type": "cylinder", "scale" [1, 1, 1],
+     * "position": [1, 1, 1], "rotation": [1, 1, 1] }
+     **/
     void CWebGLCylinder::SpawnInfo(CWebGLRender& c_visualization, CCylinderEntity& c_entity) {
+        std::stringstream cJsonStream;
+        cJsonStream << R"""({ "messageType": "spawn", "type": "cylinder", "name":")"""
+                    << c_entity.GetId() << '"';
+
         CEmbodiedEntity& cBody = c_entity.GetComponent<CEmbodiedEntity>("body");
-        const CVector3& cBodyPosition = cBody.GetOriginAnchor().Position;
+        CVector3& cBodyPosition = cBody.GetOriginAnchor().Position;
         const CQuaternion& cBodyOrientation = cBody.GetOriginAnchor().Orientation;
 
-        CByteArray *pcData = new CByteArray();
-        *pcData << EMessageType::SPAWN
-              << CYLINDER
-              << c_entity.GetRadius()
-              << c_entity.GetHeight();
-        WriteCord(*pcData, cBodyPosition, cBodyOrientation);
+        cJsonStream << ",\"scale\": [";
+        cJsonStream << c_entity.GetRadius() << ','
+                    << c_entity.GetHeight() << "],";
 
+        WriteCord(cJsonStream, cBodyPosition, cBodyOrientation);
+        cJsonStream << '}';
         m_mapTransforms[c_entity.GetId()] = std::pair<CVector3, CQuaternion>(cBodyPosition, cBodyOrientation);
+
+        CByteArray* pcData = new CByteArray();
+        (*pcData) << cJsonStream.str();
+        pcData->Resize(pcData->Size() - 1);
+        std::cout << "cylinder spawn message: " << cJsonStream.str() << std::endl;
         c_visualization.SendSpawn(std::move(std::unique_ptr<CByteArray>(pcData)), c_entity);
     }
 

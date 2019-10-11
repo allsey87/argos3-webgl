@@ -2,6 +2,7 @@
 #include <argos3/plugins/simulator/entities/box_entity.h>
 #include <argos3/core/utility/logging/argos_log.h>
 #include <argos3/core/utility/datatypes/byte_array.h>
+#include <sstream>
 
 namespace argos {
 const UInt16 BOX = 0;
@@ -28,20 +29,33 @@ const UInt16 BOX = 0;
         }
     }
 
+    /**
+     * { "messageType": "spawn", "type": "cube", "scale" [1, 1, 1],
+     * "position": [1, 1, 1], "rotation": [1, 1, 1] }
+     **/
     void CWebGLBox::SpawnInfo(CWebGLRender& c_visualization, CBoxEntity& c_entity){
-        CByteArray* pcData = new CByteArray();
+        std::stringstream cJsonStream;
+        cJsonStream << R"""({ "messageType": "spawn", "type": "box", "name":")"""
+                    << c_entity.GetId() << '"';
+
         CEmbodiedEntity& cBody = c_entity.GetComponent<CEmbodiedEntity>("body");
         CVector3& cBodyPosition = cBody.GetOriginAnchor().Position;
         const CQuaternion& cBodyOrientation = cBody.GetOriginAnchor().Orientation;
-
         auto sSize = c_entity.GetSize();
-        (*pcData) << EMessageType::SPAWN
-              << BOX
-              << sSize.GetX() 
-              << sSize.GetY()
-              << sSize.GetZ();
-        WriteCord(*pcData, cBodyPosition, cBodyOrientation);
-        LOG << "SPAWN BOX " << pcData->Size() << std::endl;
+
+        cJsonStream << ",\"scale\": [";
+        cJsonStream << sSize.GetX() << ','
+                << sSize.GetY() << ','
+                << sSize.GetZ() << "],";
+
+        WriteCord(cJsonStream, cBodyPosition, cBodyOrientation);
+        cJsonStream << '}';
+        m_mapTransforms[c_entity.GetId()] = std::pair<CVector3, CQuaternion>(cBodyPosition, cBodyOrientation);
+
+        CByteArray* pcData = new CByteArray();
+        (*pcData) << cJsonStream.str();
+        pcData->Resize(pcData->Size() - 1);
+        std::cout << "box spawn message: " << cJsonStream.str() << std::endl;
         c_visualization.SendSpawn(std::move(std::unique_ptr<CByteArray>(pcData)), c_entity);
     }
 

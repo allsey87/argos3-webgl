@@ -59,52 +59,54 @@ function load(e, name) {
     obj = e.scene;
 }
 
+const TYPES_IDS = {
+    "box": 0,
+    "cylinder": 1,
+    "prototype": 3,
+}
+
 const UPDATES = {
     0: basicUpdateCallback,
     1: basicUpdateCallback,
     3: prototypeUpdateCallback
 };
 
-const PROTOTYPE_GEOMETRIES = [
-    THREE.BoxGeometry,
-    THREE.CylinderGeometry,
-    THREE.SphereGeometry
-];
+const PROTOTYPE_GEOMETRIES = {
+    "box": THREE.BoxGeometry,
+    "cylinder": THREE.CylinderGeometry,
+    "sphere": THREE.SphereGeometry
+};
 
 const SPAWNS = {
-    0: /* CUBE */ (bin) => {
-        let reals = [0, 0, 0].map(() => bin.extractReal());
-        let geometry = new THREE.BoxGeometry(...reals);
-        let material = new THREE.MeshStandardMaterial({ color: 0xff00ff });
+    "box" : /* CUBE */ (data) => {
+        const geometry = new THREE.BoxGeometry(...data.scale);
+        const material = new THREE.MeshStandardMaterial({ color: 0xff00ff });
 
         const mesh = new THREE.Mesh(geometry, material);
-        setTransform(mesh, bin);
+        setTransform(mesh, data);
         return mesh;
     },
-    1 : /* CYLINDER */ (bin) => {
-        let reals = [0, 0].map(() => bin.extractReal());
-        let geometry = new THREE.CylinderGeometry(reals[0], reals[0], reals[1]);
-        let material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+    "cylinder" : /* CYLINDER */ (data) => {
+        const {scale} = data;
+        const geometry = new THREE.CylinderGeometry(scale[0], ...scale);
+        const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
 
 
         const mesh = new THREE.Mesh(geometry, material);
-        setTransform(mesh, bin);
+        setTransform(mesh, data);
         return mesh;
     },
-    3: /* PROTOTYPE */ (bin) => {
+    "prototype" : /* PROTOTYPE */ (data) => {
 
         let parent = new THREE.Group();
-        setTransform(parent, bin);
+        setTransform(parent, data);
 
-        while (!bin.isConsumed()) {
-            let type = bin.extractUint8();
-            let extent = [0, 0, 0].map(() => bin.extractReal());
-            let geometry = new PROTOTYPE_GEOMETRIES[type](...extent);
-            let material = new THREE.MeshStandardMaterial({ color: 0x1af055 });
+        for (let child of data.children) {
+            const {type, scale, position, rotation} = child;
+            const geometry = new PROTOTYPE_GEOMETRIES[type](...scale);
+            const material = new THREE.MeshStandardMaterial({ color: 0x1af055 });
 
-            let mesh = new THREE.Mesh(geometry, material);
-            let position = [0, 0, 0].map(() => bin.extractReal());
-            let rotation = [0, 0, 0].map(() => bin.extractReal());
+            const mesh = new THREE.Mesh(geometry, material);
             mesh.matrix.makeRotationFromEuler(new THREE.Euler(...rotation));
             mesh.position.set(...position);
             parent.add(mesh);
@@ -114,16 +116,21 @@ const SPAWNS = {
     },
 }
 
-function setTransform(mesh, bin) {
+function setTransformFromBin(mesh, bin) {
     let position = [0, 0, 0].map(() => bin.extractReal());
     let rotation = [0, 0, 0].map(() => bin.extractReal());
+    setTransform(mesh, {position, rotation});
+}
+
+function setTransform(mesh, {position, rotation}) {
     mesh.position.set(...position);
     mesh.rotation.set(...rotation);
 }
 
-function spawn(typeId, bin) {
-    let object = SPAWNS[typeId](bin);
-    TYPES.push(typeId);
+function spawn(data) {
+    let object = SPAWNS[data.type](data);
+    object.name = data.name;
+    TYPES.push(TYPES_IDS[data.type]);
     object.netId = OBJECTS.length;
     OBJECTS.push(object);
     scene.add(object);
@@ -136,12 +143,12 @@ function prototypeUpdateCallback(networkId, bin) {
     let parent = OBJECTS[networkId];
     while (!bin.isConsumed()) {
         let mesh = parent.children[bin.extractUint8()];
-        setTransform(mesh, bin);
+        setTransformFromBin(mesh, bin);
     }
 }
 
 function basicUpdateCallback(networkId, bin) {
-    setTransform(OBJECTS[networkId], bin);
+    setTransformFromBin(OBJECTS[networkId], bin);
 }
 
 function updateCallback(networkId, bin) {

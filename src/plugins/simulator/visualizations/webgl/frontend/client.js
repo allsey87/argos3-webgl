@@ -42,10 +42,8 @@ class Client {
         console.log("close");
     }
 
-    spawnMessage(bin) {
-        // cylinder and boxes are charterized by reals
-        const typeId = bin.extractUint16();
-        this.spawnCallback(typeId, bin);
+    spawnMessage(data) {
+        this.spawnCallback(data);
     }
 
     updateMessage(bin) {
@@ -54,16 +52,25 @@ class Client {
     }
 
     onMessage(e) {
-        let bin = new BinaryExtractor(e.data);
-        const messageType = bin.extractUint8();
-
-        switch (messageType) {
-            case 0:
-                this.spawnMessage(bin);
-                break;
-            case 1:
-                this.updateMessage(bin);
-                break;
+        if (typeof e.data === "string") {
+            const data = JSON.parse(e.data);
+            switch (data.messageType) {
+                case "spawn":
+                    this.spawnMessage(data);
+                    break;
+                default:
+                    console.warn("Recieved a unkown text message type " + data.messageType);
+            }
+        } else {
+            let bin = new BinaryExtractor(e.data);
+            const messageType = bin.extractUint8();
+            switch (messageType) {
+                case 1:
+                    this.updateMessage(bin);
+                    break;
+                default:
+                    console.warn("Recieved a unkown binary message type " + messageType);
+            }
         }
     }
 
