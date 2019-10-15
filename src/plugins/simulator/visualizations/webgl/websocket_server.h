@@ -8,25 +8,12 @@
 #include "webgl_render.h"
 #include <functional>
 #include "play_state.h"
+#include "ring_buffer.h"
 
 namespace argos {
 
 int my_callback(struct lws *wsi, enum lws_callback_reasons reason,
                        void *user, void *in, size_t len);
-
-struct SMessage {
-    CByteArray* data;
-    lws_write_protocol type;
-};
-
-struct SPerSessionData {
-    struct lws *m_psWSI;
-    UInt32 m_uLastSpawnedNetId; // TODO: network id
-    UInt32 m_uRingTail;
-    bool m_bKicked;
-    SMessage m_psCurrentMessage;
-    size_t m_uSent;
-};
 
 namespace EClientMessageType {
     const UInt8 PAUSE=0;
@@ -38,6 +25,8 @@ namespace EClientMessageType {
 
 
 class CWebsocketServer {
+    typedef std::vector<SPerSessionData*> TClients;
+    typedef TClients::iterator TIterCleints;
 public:
     CWebsocketServer(std::string str_HostName, UInt16 un_Port,
         std::string str_Static, CPlayState* pc_paly_state,
@@ -69,16 +58,11 @@ public:
 
     ~CWebsocketServer();
 
-    typedef std::vector<SPerSessionData*>::iterator TIterCleints;
-
 private:
     void ReceivedMessage(SMessage *ps_msg);
-    void EnsureRingSpace();
-    /**
-     * return true if the message is entirely sent
-     *
-     **/
-    bool WriteMessage(SPerSessionData*, const SMessage*);
+    inline bool ShouldRecieveSpawn(SPerSessionData* ps_session) {
+        return ps_session->m_uLastSpawnedNetId < m_pcVisualization->GetRootEntitiesCount();
+    }
 
 private:
     std::string m_strHostName;
@@ -86,10 +70,13 @@ private:
     UInt16 m_unPort;
     struct lws_context *m_psContext;
     bool m_bStop;
-    std::vector<SPerSessionData*> m_vecClients;
     CPlayState* m_pcPalyState;
     CWebGLRender* m_pcVisualization;
-    lws_ring* m_psRingBuffer;
+    /*
+        New clients are not taken into account by the ring
+    */
+    std::vector<SPerSessionData*> m_vecSpawningClients;
+    CRingBuffer m_cRingBuffer;
 };
 
 struct SDataPerVhost {
