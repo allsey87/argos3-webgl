@@ -91,14 +91,14 @@ int CWebsocketServer::Callback(SPerSessionData *ps_session, lws_callback_reasons
         ps_session->m_uLastSpawnedNetId = 0; // maybe the already 0 at allocation
         ps_session->m_bKicked = false;
         ps_session->m_uSent = 0;
-        ps_session->m_psCurrentMessage.data = new CByteArray();
+        ps_session->m_psCurrentRecvMessage.data = new CByteArray();
         lws_callback_on_writable(ps_session->m_psWSI);
         break;
     case LWS_CALLBACK_PROTOCOL_DESTROY:
         m_bStop = true;
         break;
     case LWS_CALLBACK_CLOSED:
-        delete ps_session->m_psCurrentMessage.data;
+        delete ps_session->m_psCurrentRecvMessage.data;
         /* kicked imply being member of the ring
            and not member of m_vecspawnedclient
            and the ring already did the necessary to remove*/
@@ -113,13 +113,13 @@ int CWebsocketServer::Callback(SPerSessionData *ps_session, lws_callback_reasons
 
         if (ShouldRecieveSpawn(ps_session)) {
 
-            CByteArray* pcData = m_pcVisualization->GetSpawnMsg(ps_session->m_uLastSpawnedNetId);
+            CByteArray* pcData = GetSpawnMsg(ps_session->m_uLastSpawnedNetId);
             SMessage sMessage = {pcData, LWS_WRITE_TEXT};
 
             if (WriteMessage(ps_session, &sMessage)) {
                 ps_session->m_uLastSpawnedNetId += 1;
                 // the client finished spawning all entities
-                if (!ShouldRecieveSpawn(ps_session)) {
+                if (!ShouldRecieveSpawn(ps_session) && !ps_session->m_bInRing) {
                     m_vecSpawningClients.erase(std::find(m_vecSpawningClients.begin(), m_vecSpawningClients.end(), ps_session));
                     ps_session->m_bInRing = true;
                     m_cRingBuffer.AddClient(ps_session);
@@ -134,14 +134,14 @@ int CWebsocketServer::Callback(SPerSessionData *ps_session, lws_callback_reasons
         m_cRingBuffer.CallbackCancel();
         break;
     case LWS_CALLBACK_RECEIVE:
-        ps_session->m_psCurrentMessage.data->AddBuffer(un_bytes, u_len);
+        ps_session->m_psCurrentRecvMessage.data->AddBuffer(un_bytes, u_len);
 
         if (lws_is_final_fragment(ps_session->m_psWSI)) {
-            ps_session->m_psCurrentMessage.type = lws_frame_is_binary(ps_session->m_psWSI)
+            ps_session->m_psCurrentRecvMessage.type = lws_frame_is_binary(ps_session->m_psWSI)
                 ? LWS_WRITE_BINARY
                 : LWS_WRITE_TEXT;
-            ReceivedMessage(&ps_session->m_psCurrentMessage);
-            ps_session->m_psCurrentMessage.data->Clear();
+            ReceivedMessage(&ps_session->m_psCurrentRecvMessage);
+            ps_session->m_psCurrentRecvMessage.data->Clear();
         }
         break;
     default:

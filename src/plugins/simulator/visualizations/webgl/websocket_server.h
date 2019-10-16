@@ -58,10 +58,17 @@ public:
 
     ~CWebsocketServer();
 
+    void AddSpawnMessage(std::unique_ptr<CByteArray> c_Data) {
+        m_vecSpawnMessages.push_back(std::move(c_Data));
+    }
+
 private:
     void ReceivedMessage(SMessage *ps_msg);
     inline bool ShouldRecieveSpawn(SPerSessionData* ps_session) {
         return ps_session->m_uLastSpawnedNetId < m_pcVisualization->GetRootEntitiesCount();
+    }
+    CByteArray* GetSpawnMsg(UInt32 u_id) {
+        return m_vecSpawnMessages[u_id].get();
     }
 
 private:
@@ -72,6 +79,7 @@ private:
     bool m_bStop;
     CPlayState* m_pcPalyState;
     CWebGLRender* m_pcVisualization;
+    std::vector<std::unique_ptr<CByteArray>> m_vecSpawnMessages;
     /*
         New clients are not taken into account by the ring
     */

@@ -46,16 +46,9 @@ namespace argos {
    /****************************************/
    /****************************************/
 
-   CByteArray* CWebGLRender::GetSpawnMsg(networkId_t u_id) {
-      return m_vecSpawnMessages[u_id].get();
-   }
-
-   /****************************************/
-   /****************************************/
-
    void CWebGLRender::SendSpawn(std::unique_ptr<CByteArray> c_Data, CComposableEntity& c_entity) {
       m_mapNetworkId[c_entity.GetId()] = m_mapNetworkId.size();
-      m_vecSpawnMessages.push_back(std::move(c_Data));
+      m_pcServer->AddSpawnMessage(std::move(c_Data));
       m_vecEntites.push_back(&c_entity);
    }
 

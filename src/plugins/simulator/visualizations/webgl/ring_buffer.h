@@ -83,10 +83,13 @@ namespace argos {
         void CallbackWriteMessage(SPerSessionData* ps_session) {
             const SMessage* sMessage = reinterpret_cast<const SMessage*>(
                 lws_ring_get_element(m_psRingBuffer, &ps_session->m_uRingTail));
+            ps_session->m_psCurrentSendMessage = *sMessage;
             if (!sMessage) return;
-            if (WriteMessage(ps_session, sMessage)) {
+            if (WriteMessage(ps_session, &ps_session->m_psCurrentSendMessage)) {
+                /* Advance in the session tail in the buffer */
                 lws_ring_consume(m_psRingBuffer, &ps_session->m_uRingTail, NULL, 1);
-            } else {
+            }
+            /*else {
                 lws_callback_on_writable(ps_session->m_psWSI);
                 return;
             }
@@ -94,8 +97,6 @@ namespace argos {
             UInt32 tOldestTail = m_vecClients[0]->m_uRingTail;
 
             for (TIterCleints tIter = m_vecClients.begin() + 1; tIter != m_vecClients.end(); ++tIter) {
-                // ignore users who are still receiving spawn messages
-                if ((*tIter)->m_uLastSpawnedNetId < ps_session->m_uLastSpawnedNetId) continue;
                 size_t uCurrentRemain = lws_ring_get_count_waiting_elements(m_psRingBuffer, &((*tIter)->m_uRingTail));
                 if (uCurrentRemain > uOldestRemain) {
                     uOldestRemain = uCurrentRemain;
@@ -106,6 +107,7 @@ namespace argos {
 
             if (lws_ring_get_element(m_psRingBuffer, &ps_session->m_uRingTail))
                 lws_callback_on_writable(ps_session->m_psWSI);
+            // */
         }
 
         void CallbackCancel() {

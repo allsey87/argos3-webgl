@@ -64,8 +64,9 @@ namespace argos {
       virtual void Destroy();
 
       virtual void SendUpdates(CByteArray* c_entity);
+      
       virtual void SendSpawn(std::unique_ptr<CByteArray> c_Data, CComposableEntity& c_entity);
-      virtual CByteArray* GetSpawnMsg(networkId_t);
+
       void RecievedMove(CByteArray& c_Data);
 
       networkId_t getNetworkId(const std::string& str_id) const {
@@ -84,7 +85,6 @@ namespace argos {
       std::string m_strBind;
       std::string m_strStatic;
       std::vector<CComposableEntity*> m_vecEntites;
-      std::vector<std::unique_ptr<CByteArray>> m_vecSpawnMessages;
       std::map<std::string, networkId_t> m_mapNetworkId;
       UInt16 m_unPort;
       UInt16 m_unPeriod;

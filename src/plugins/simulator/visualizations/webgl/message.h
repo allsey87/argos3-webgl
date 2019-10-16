@@ -18,8 +18,13 @@ namespace argos {
         UInt32 m_uRingTail;
         bool m_bKicked;
         bool m_bInRing;
-        SMessage m_psCurrentMessage;
+        // Recieved by client
+        SMessage m_psCurrentRecvMessage;
+
         size_t m_uSent;
+        /*  when m_uSent == 0 this should not be accessed
+            except if it has been assigned just now */
+        SMessage m_psCurrentSendMessage;
     };
 
     bool WriteMessage(SPerSessionData* ps_session, const SMessage* ps_message);
