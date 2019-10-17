@@ -6,7 +6,6 @@
 #include <argos3/plugins/robots/prototype/simulator/prototype_entity.h>
 #include <argos3/plugins/robots/prototype/simulator/prototype_link_entity.h>
 #include <argos3/plugins/robots/prototype/simulator/prototype_link_equipped_entity.h>
-#include <argos3/core/wrappers/lua/lua_controller.h>
 
 namespace argos {
 const UInt16 PROTOTYPE = 3;
@@ -67,7 +66,7 @@ void CWebGLPrototype::UpdateInfo(CWebGLRender &c_visualization,
 
 void CWebGLPrototype::SpawnInfo(CWebGLRender &c_visualization,
                                 CPrototypeEntity &c_entity) {
-    std::stringstream cJsonStream;
+    std::ostringstream cJsonStream;
     cJsonStream << R"""({ "messageType": "spawn", "type": "prototype", "name":")"""
                 << c_entity.GetId() << "\",";
 
@@ -78,18 +77,19 @@ void CWebGLPrototype::SpawnInfo(CWebGLRender &c_visualization,
     WriteCord(cJsonStream, cBodyPosition, cBodyOrientation);
 
     // c_entity.
-    auto x = c_entity.GetComponentVector();
-    std::for_each(x.begin(), x.end(), [](CEntity* e) {
-        std::cout << "Controller check:" << std::endl;
-        auto x = dynamic_cast<CControllableEntity*>(e);
-        if (x == nullptr) std::cout << " Not a controller" << std::endl;
-        else {
-            auto cont = dynamic_cast<CLuaController*>(&(x->GetController()));
-            cont->GetLuaState();
-            if (cont == nullptr) std::cout << " Not a Lua controller" << std::endl;
-            std::cout << " A lua controller" << std::endl;
+    std::vector<argos::CEntity *> pvecComponents = c_entity.GetComponentVector();
+    for (CEntity* pcComponent: pvecComponents) {
+        CControllableEntity* pcControllable = dynamic_cast<CControllableEntity*>(pcComponent);
+        if (pcControllable) {
+            CLuaController* pcController = dynamic_cast<CLuaController*>(&(pcControllable->GetController()));
+            cJsonStream << ",\"luaScript\":\"";
+            for (char c: pcController->getScriptName()) {
+                EscapeChar(cJsonStream, c);
+            }
+            cJsonStream << '"';
+            break;
         }
-    });
+    }
 
     // Save root entity position
     m_mapTransforms[c_entity.GetId()] =

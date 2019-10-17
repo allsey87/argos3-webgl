@@ -43,10 +43,10 @@ struct lws_protocol_vhost_options ACCESS_CONTROL_REQUEST_HEADERS = {
 
 CWebsocketServer::CWebsocketServer(std::string str_HostName, UInt16 un_Port,
                                    std::string str_Static, CPlayState* pc_paly_state,
-                                   CWebGLRender* pc_visualization)
+                                   CWebGLRender* pc_visualization, CLuaControllers* pc_LuaContainer)
     : m_strHostName(str_HostName), m_strStatic(str_Static), m_unPort(un_Port),
     m_pcPalyState(pc_paly_state), m_pcVisualization(pc_visualization),
-    m_cRingBuffer(80) {
+    m_cRingBuffer(80), m_pcLuaContainer(pc_LuaContainer) {
     struct lws_context_creation_info sInfo;
     memset(&sInfo, 0, sizeof sInfo);
     MOUNT_SETTINGS.origin = m_strStatic.c_str();
@@ -81,6 +81,24 @@ void CWebsocketServer::SendText(const std::string& str_send) {
     lws_cancel_service(m_psContext);
 }
 
+void CWebsocketServer::WriteSpawn(SPerSessionData* ps_session) {
+    if (WriteMessage(ps_session)) {
+        ps_session->m_uLastSpawnedNetId += 1;
+        // the client finished spawning all entities
+        if (!ShouldRecieveSpawn(ps_session) && !ps_session->m_bInRing) {
+            m_vecSpawningClients.erase(std::find(m_vecSpawningClients.begin(), m_vecSpawningClients.end(), ps_session));
+            ps_session->m_bInRing = true;
+            m_cRingBuffer.AddClient(ps_session);
+        }
+    }
+    lws_callback_on_writable(ps_session->m_psWSI);
+}
+
+void CWebsocketServer::WriteLua(SPerSessionData* ps_session) {
+    if (WriteMessage(ps_session)) ps_session->m_bHasLua = true;
+    lws_callback_on_writable(ps_session->m_psWSI);
+}
+
 
 int CWebsocketServer::Callback(SPerSessionData *ps_session, lws_callback_reasons e_reason,
             UInt8* un_bytes, size_t u_len) {
@@ -90,6 +108,7 @@ int CWebsocketServer::Callback(SPerSessionData *ps_session, lws_callback_reasons
         m_vecSpawningClients.push_back(ps_session);
         ps_session->m_uLastSpawnedNetId = 0; // maybe the already 0 at allocation
         ps_session->m_bKicked = false;
+        ps_session->m_bHasLua = false;
         ps_session->m_uSent = 0;
         ps_session->m_psCurrentRecvMessage.data = new CByteArray();
         lws_callback_on_writable(ps_session->m_psWSI);
@@ -111,23 +130,36 @@ int CWebsocketServer::Callback(SPerSessionData *ps_session, lws_callback_reasons
     case LWS_CALLBACK_SERVER_WRITEABLE:
         if (ps_session->m_bKicked) return -1;
 
-        if (ShouldRecieveSpawn(ps_session)) {
-
-            CByteArray* pcData = GetSpawnMsg(ps_session->m_uLastSpawnedNetId);
-            SMessage sMessage = {pcData, LWS_WRITE_TEXT};
-
-            if (WriteMessage(ps_session, &sMessage)) {
-                ps_session->m_uLastSpawnedNetId += 1;
-                // the client finished spawning all entities
-                if (!ShouldRecieveSpawn(ps_session) && !ps_session->m_bInRing) {
-                    m_vecSpawningClients.erase(std::find(m_vecSpawningClients.begin(), m_vecSpawningClients.end(), ps_session));
-                    ps_session->m_bInRing = true;
-                    m_cRingBuffer.AddClient(ps_session);
-                }
+        /* Continue sending */
+        if (ps_session->m_uSent != 0) {/////////////////////////
+            switch (ps_session->m_eSendType) {
+                case SPerSessionData::ESendMessageStep::Lua:
+                    WriteLua(ps_session);
+                break;
+                case SPerSessionData::ESendMessageStep::Ring:
+                    m_cRingBuffer.CallbackWriteMessage(ps_session);
+                break;
+                case SPerSessionData::ESendMessageStep::Spawn:
+                    WriteSpawn(ps_session);
+                break;
             }
-            lws_callback_on_writable(ps_session->m_psWSI);
-        } else {
-            m_cRingBuffer.CallbackWriteMessage(ps_session);
+        } else { /* Prepare a new Message */
+            /* Lua files will have rare race conditions for multiple clients */
+            if (!ps_session->m_bHasLua) {
+                ps_session->m_psCurrentSendMessage = m_sLuaScripts;
+                ps_session->m_eSendType = SPerSessionData::ESendMessageStep::Lua;
+
+                WriteLua(ps_session);
+            } else if (ShouldRecieveSpawn(ps_session)) {
+                CByteArray* pcData = GetSpawnMsg(ps_session->m_uLastSpawnedNetId);
+                ps_session->m_psCurrentSendMessage = {pcData, LWS_WRITE_TEXT};
+                ps_session->m_eSendType = SPerSessionData::ESendMessageStep::Spawn;
+
+                WriteSpawn(ps_session);
+            } else if (ps_session->m_bInRing) {
+                ps_session->m_eSendType = SPerSessionData::ESendMessageStep::Ring;
+                m_cRingBuffer.CallbackWriteMessage(ps_session);
+            }
         }
         break;
     case LWS_CALLBACK_EVENT_WAIT_CANCELLED:
@@ -180,6 +212,18 @@ CWebsocketServer::~CWebsocketServer() {
         lws_context_destroy(m_psContext);
 }
 
+void CWebsocketServer::Prepare() {
+    m_sLuaScripts.data = new CByteArray();
+    m_sLuaScripts.type = LWS_WRITE_TEXT;
+    UpdateLuaScripts();
+}
+
+void CWebsocketServer::UpdateLuaScripts() {
+    CByteArray* pcData = m_sLuaScripts.data;
+    (*pcData) << m_pcLuaContainer->GetJson();
+    pcData->Resize(pcData->Size() - 1);
+}
+
 int my_callback(lws *ps_wsi, enum lws_callback_reasons e_reason, void *user,
                 void *in, size_t un_len) {
     if (e_reason == LWS_CALLBACK_PROTOCOL_INIT) {
@@ -192,6 +236,7 @@ int my_callback(lws *ps_wsi, enum lws_callback_reasons e_reason, void *user,
         ps_vhd->vhost = lws_get_vhost(ps_wsi);
         ps_vhd->server = reinterpret_cast<CWebsocketServer *>(
             lws_context_user(ps_vhd->context));
+        ps_vhd->server->Prepare();
         LOG << ps_vhd << std::endl;
     } else {
         SDataPerVhost *ps_vhd =

@@ -85,14 +85,14 @@ namespace argos {
                 lws_ring_get_element(m_psRingBuffer, &ps_session->m_uRingTail));
             ps_session->m_psCurrentSendMessage = *sMessage;
             if (!sMessage) return;
-            if (WriteMessage(ps_session, &ps_session->m_psCurrentSendMessage)) {
+            if (WriteMessage(ps_session)) {
                 /* Advance in the session tail in the buffer */
                 lws_ring_consume(m_psRingBuffer, &ps_session->m_uRingTail, NULL, 1);
-            }
-            /*else {
+            } else {
                 lws_callback_on_writable(ps_session->m_psWSI);
                 return;
             }
+            /*
             size_t uOldestRemain = lws_ring_get_count_waiting_elements(m_psRingBuffer, &m_vecClients[0]->m_uRingTail);
             UInt32 tOldestTail = m_vecClients[0]->m_uRingTail;
 
@@ -105,9 +105,9 @@ namespace argos {
             }
             lws_ring_update_oldest_tail(m_psRingBuffer, tOldestTail);
 
+            // */
             if (lws_ring_get_element(m_psRingBuffer, &ps_session->m_uRingTail))
                 lws_callback_on_writable(ps_session->m_psWSI);
-            // */
         }
 
         void CallbackCancel() {

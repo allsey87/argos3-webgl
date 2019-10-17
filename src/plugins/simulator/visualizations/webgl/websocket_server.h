@@ -30,7 +30,7 @@ class CWebsocketServer {
 public:
     CWebsocketServer(std::string str_HostName, UInt16 un_Port,
         std::string str_Static, CPlayState* pc_paly_state,
-        CWebGLRender* pc_visualization);
+        CWebGLRender* pc_visualization, CLuaControllers* pc_LuaContainer);
     
     /**
      * Will be used on multithread
@@ -62,6 +62,14 @@ public:
         m_vecSpawnMessages.push_back(std::move(c_Data));
     }
 
+    void Prepare();
+
+    void UpdateLuaScripts();
+
+    void WriteSpawn(SPerSessionData* ps_session);
+
+    void WriteLua(SPerSessionData* ps_session);
+
 private:
     void ReceivedMessage(SMessage *ps_msg);
     inline bool ShouldRecieveSpawn(SPerSessionData* ps_session) {
@@ -85,6 +93,8 @@ private:
     */
     std::vector<SPerSessionData*> m_vecSpawningClients;
     CRingBuffer m_cRingBuffer;
+    CLuaControllers* m_pcLuaContainer;
+    SMessage m_sLuaScripts;
 };
 
 struct SDataPerVhost {

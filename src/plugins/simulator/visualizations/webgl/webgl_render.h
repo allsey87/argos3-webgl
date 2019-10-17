@@ -19,6 +19,7 @@ namespace argos {
 #include <argos3/core/utility/math/quaternion.h>
 #include "play_state.h"
 #include <argos3/core/utility/datatypes/byte_array.h>
+#include "controllers_container.h"
 
 namespace argos {
 
@@ -93,6 +94,7 @@ namespace argos {
       bool m_bDirty;
       CWebsocketServer* m_pcServer;
       CPlayState m_cPlayState;
+      CLuaControllers m_cLuaContainer;
    };
 
    inline void WriteCord(CByteArray& cData, const CVector3& c_position, const CQuaternion& c_orientation) {
@@ -106,7 +108,7 @@ namespace argos {
             << cZAngle.GetValue();
     }
    
-   inline void WriteCord(std::stringstream& cData, const CVector3& c_position, const CQuaternion& c_orientation) {
+   inline void WriteCord(std::ostringstream& cData, const CVector3& c_position, const CQuaternion& c_orientation) {
       CRadians cZAngle, cYAngle, cXAngle;
       c_orientation.ToEulerAngles(cZAngle, cYAngle, cXAngle);
       cData << "\"position\":[" 

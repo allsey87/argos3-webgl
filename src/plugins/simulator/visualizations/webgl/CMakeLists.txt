@@ -4,6 +4,7 @@
 # argos3/plugins/simulator/visualizations/qt-opengl
 set(ARGOS3_HEADERS_PLUGINS_SIMULATOR_VISUALIZATIONS_WEBGL
   webgl_render.h
+  controllers_container.h
   ring_buffer.h
   message.h
   models/webgl_box.h

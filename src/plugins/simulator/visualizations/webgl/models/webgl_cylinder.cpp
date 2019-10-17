@@ -29,7 +29,7 @@ const UInt16 CYLINDER = 1;
      * "position": [1, 1, 1], "rotation": [1, 1, 1] }
      **/
     void CWebGLCylinder::SpawnInfo(CWebGLRender& c_visualization, CCylinderEntity& c_entity) {
-        std::stringstream cJsonStream;
+        std::ostringstream cJsonStream;
         cJsonStream << R"""({ "messageType": "spawn", "type": "cylinder", "name":")"""
                     << c_entity.GetId() << '"';
 

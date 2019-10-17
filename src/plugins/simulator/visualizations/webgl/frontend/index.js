@@ -1,9 +1,9 @@
 var scene = new THREE.Scene();
 var camera = new THREE.PerspectiveCamera(
     75, window.innerWidth / window.innerHeight, 0.1, 1000);
-var renderer = new THREE.WebGLRenderer();
+var renderer = new THREE.WebGLRenderer({ canvas: document.getElementById("canvas")});
 renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
+
 renderer.domElement.oncontextmenu = (m) => false;
 renderer.domElement.setAttribute("tabindex", 1);
 
@@ -20,6 +20,7 @@ camera.position.y = 0;
 camera.position.set(0.24952068935534208, 0.11596185280276139, 0.16394337708001633) ; camera.rotation.set(-0.4302663515702581, 0.37962892503458523, 0.07864237505093132)
 var uri = document.getElementById("uri");
 var websocket;
+var editor = new Editor(luaEditor);
 
 class MainLoop {
     constructor() {
@@ -167,6 +168,7 @@ const SPAWNS = {
             parent.add(mesh);
         }
 
+        parent.luaScript = data.luaScript;
         return parent;
     },
 }
@@ -187,7 +189,7 @@ function connect() {
         websocket.websocket.close();
     }
     OBJECTS.reset();
-    websocket = new Client(uri.value, load, OBJECTS.spawn, OBJECTS.updateCallback);
+    websocket = new Client(uri.value, load, OBJECTS.spawn, OBJECTS.updateCallback, editor.setScripts);
 }
 
 document.getElementById("connect").addEventListener("click", connect);

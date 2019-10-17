@@ -34,7 +34,7 @@ const UInt16 BOX = 0;
      * "position": [1, 1, 1], "rotation": [1, 1, 1] }
      **/
     void CWebGLBox::SpawnInfo(CWebGLRender& c_visualization, CBoxEntity& c_entity){
-        std::stringstream cJsonStream;
+        std::ostringstream cJsonStream;
         cJsonStream << R"""({ "messageType": "spawn", "type": "box", "name":")"""
                     << c_entity.GetId() << '"';
 

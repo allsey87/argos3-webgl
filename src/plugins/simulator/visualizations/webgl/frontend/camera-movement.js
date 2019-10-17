@@ -119,58 +119,87 @@ let raycaster = new THREE.Raycaster();
 let mouseVector = new THREE.Vector2();
 const XY_PLANE = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
 let sel;
+
+class Selection {
+    constructor() {
+        this.selection = undefined;
+        this.raycaster = new THREE.Raycaster();
+    }
+
+    unSelect() {
+        if (this.selection) {
+            metalness(this.selection, 0.5);
+            this.selection = undefined;
+        }
+    }
+
+    root(obj) {
+        return (obj.netId === undefined) ? obj.parent: obj;
+    }
+
+    notifyEditor() {
+        editor.selectionChanged(this.selection);
+    }
+
+    select(obj) {
+        this.selection = obj;
+        metalness(this.selection, 0.4);
+    }
+
+    click = (event) => {
+        raycaster.setFromCamera(mouseVector, camera);
+        let res = raycaster.intersectObjects(scene.children, true);
+        console.log("Selection");
+
+        /* Something has been hitted */
+        if (res.length > 0) {
+            let obj = this.root(res[0].object);
+            /* Clicking on the selection unselect it */
+            if (obj == this.selection) {
+                this.unSelect();
+            } else {
+                /* a new object has been selected */
+                this.unSelect();
+                this.select(obj);
+            }
+        /* Clicked nowhere -> move selected object if there is */
+        } else if (this.selection) {
+            let origin = raycaster.ray.origin.clone();
+            let end = raycaster.ray.direction
+                        .clone()
+                        .normalize()
+                        .multiplyScalar(MAX_DISTANCE_CLICK)
+                        .add(origin);
+        
+            let line = new THREE.Line3(origin, end);
+            let inter = XY_PLANE.intersectLine(line);
+            if (inter) {
+                // MOVE = 4
+
+                let writer = new BinaryWriter();
+
+                writer.addUInt8(4);
+
+                writer.addUInt32(this.selection.netId);
+                writer.addReal(inter.x);
+                writer.addReal(inter.y);
+                writer.addReal(this.selection.position.z);
+                websocket.sendBuffer(writer.getArrayBuffer());
+
+                this.unSelect();
+            }
+        }
+        this.notifyEditor();
+    }
+}
+
 const MAX_DISTANCE_CLICK = 30;
+var selection = new Selection();
 // MOUSE
 renderer.domElement.addEventListener("mousemove", onMouseMove, false);
 renderer.domElement.addEventListener("mousedown", onMouseDown, false);
 renderer.domElement.addEventListener("mouseup", onMouseUp, false);
-renderer.domElement.addEventListener("click", (ev) => {
-    raycaster.setFromCamera(mouseVector, camera);
-    let res = raycaster.intersectObjects(scene.children, true);
-
-    if (res.length > 0) {
-        if (sel) {
-            metalness(sel, 0.5);
-        }
-
-        if (res[0].object != sel) {
-            sel = res[0].object;
-            if (sel.netId === undefined) {
-                // Selected prototype part
-                sel = sel.parent;
-            }
-            metalness(sel, 0.4);
-        } else {
-            sel = undefined;
-        }
-    } else if (sel) {
-        let origin = raycaster.ray.origin.clone();
-        let end = raycaster.ray.direction
-                    .clone()
-                    .normalize()
-                    .multiplyScalar(MAX_DISTANCE_CLICK)
-                    .add(origin);
-    
-        let line = new THREE.Line3(origin, end);
-        let inter = XY_PLANE.intersectLine(line);
-        if (inter) {
-            // MOVE = 4
-
-            let writer = new BinaryWriter();
-
-            writer.addUInt8(4);
-
-            writer.addUInt32(sel.netId);
-            writer.addReal(inter.x);
-            writer.addReal(inter.y);
-            writer.addReal(sel.position.z);
-            websocket.sendBuffer(writer.getArrayBuffer());
-
-            metalness(sel, 0.5);
-            sel = undefined;
-        }
-    }
-},false);
+renderer.domElement.addEventListener("click", selection.click, false); // */
 // KEYBOARD
 MAINLOOP.addCallback(move);
 renderer.domElement.addEventListener("keyup", onKeyUp, false);

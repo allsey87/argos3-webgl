@@ -16,6 +16,7 @@
 #include <argos3/core/utility/logging/argos_log.h>
 #include <argos3/core/utility/string_utilities.h>
 #include "websocket_server.h"
+#include <argos3/core/wrappers/lua/lua_controller.h>
 
 namespace argos {
 
@@ -33,7 +34,7 @@ namespace argos {
          GetNodeAttributeOrDefault(t_tree, "interactive", m_bInteractive, m_bInteractive);
          GetNodeAttributeOrDefault(t_tree, "period", m_unPeriod, m_unPeriod);
 
-         m_pcServer = new CWebsocketServer(m_strBind, m_unPort, m_strStatic, &m_cPlayState, this);
+         m_pcServer = new CWebsocketServer(m_strBind, m_unPort, m_strStatic, &m_cPlayState, this, &m_cLuaContainer);
          LOG << "[INFO] WebGL visualization started on: "
              << "https://" << m_strBind << ":" << m_unPort << "/" << std::endl
              << "[INFO] Serving the static folder: " << m_strStatic << std::endl;
@@ -67,6 +68,21 @@ namespace argos {
          ::system(strStartBrowser.c_str()); 
       }
       CSpace& cSpace = m_cSimulator.GetSpace();
+
+      CSpace::TMapPerType& tControllables = cSpace.GetEntitiesByType("controller");
+      /* Go through them and keep a pointer to each Lua controller */
+      for(CSpace::TMapPerType::iterator it = tControllables.begin();
+          it != tControllables.end();
+          ++it) {
+         /* Try to convert the controller into a Lua controller */
+         CControllableEntity* pcControllable = any_cast<CControllableEntity*>(it->second);
+         CLuaController* pcLuaController = dynamic_cast<CLuaController*>(&(pcControllable->GetController()));
+         if(pcLuaController) {
+            /* Conversion succeeded, add to indices */
+            m_cLuaContainer.AddController(pcLuaController);
+         }
+      }
+
       CEntity::TVector& vecEntities = cSpace.GetRootEntityVector();
       for(CEntity::TVector::iterator itEntities = vecEntities.begin();
          itEntities != vecEntities.end();

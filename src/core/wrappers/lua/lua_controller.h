@@ -3,7 +3,8 @@
  *
  * @author Carlo Pinciroli <ilpincy@gmail.com>
  */
-
+#ifndef LUA_CONTROLLER
+#define LUA_CONTROLLER
 #include <argos3/core/control_interface/ci_controller.h>
 #include <argos3/core/utility/math/rng.h>
 
@@ -31,6 +32,10 @@ namespace argos {
 
       inline lua_State* GetLuaState() {
          return m_ptLuaState;
+      }
+
+      inline std::string getScriptName () {
+         return m_strScriptFileName;
       }
 
       virtual void SetLuaScript(const std::string& str_script,
@@ -61,3 +66,4 @@ namespace argos {
    };
 
 }
+#endif

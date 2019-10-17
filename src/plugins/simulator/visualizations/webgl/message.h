@@ -21,13 +21,23 @@ namespace argos {
         // Recieved by client
         SMessage m_psCurrentRecvMessage;
 
+        enum ESendMessageStep {
+            Spawn,
+            Ring,
+            Lua
+        };
+
         size_t m_uSent;
         /*  when m_uSent == 0 this should not be accessed
             except if it has been assigned just now */
         SMessage m_psCurrentSendMessage;
+        ESendMessageStep m_eSendType;
+        bool m_bHasLua;
     };
 
-    bool WriteMessage(SPerSessionData* ps_session, const SMessage* ps_message);
+    bool WriteMessage(SPerSessionData* ps_session);
+
+    void EscapeChar(std::ostringstream& cStrStream, char c);
 
     void DestroyMessage(void *ps_message);
 }
