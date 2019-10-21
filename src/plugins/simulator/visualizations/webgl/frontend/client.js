@@ -68,8 +68,11 @@ class Client {
         }
     }
 
-    sendBuffer(buffer) {
-        this.websocket.send(buffer);
+    send(data) {
+        if (data instanceof ArrayBuffer)
+            this.websocket.send(buffer);
+        else
+            this.websocket.send(JSON.stringify(data));
     }
 
     sendStep() {

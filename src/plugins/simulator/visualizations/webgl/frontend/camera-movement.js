@@ -184,7 +184,7 @@ class Selection {
                 writer.addReal(inter.x);
                 writer.addReal(inter.y);
                 writer.addReal(this.selection.position.z);
-                websocket.sendBuffer(writer.getArrayBuffer());
+                websocket.send(writer.getArrayBuffer());
 
                 this.unSelect();
             }

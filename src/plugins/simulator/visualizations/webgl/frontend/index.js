@@ -20,7 +20,7 @@ camera.position.y = 0;
 camera.position.set(0.24952068935534208, 0.11596185280276139, 0.16394337708001633) ; camera.rotation.set(-0.4302663515702581, 0.37962892503458523, 0.07864237505093132)
 var uri = document.getElementById("uri");
 var websocket;
-var editor = new Editor(luaEditor);
+var editor = new Editor(luaEditor, document.getElementById("editor-save"));
 
 class MainLoop {
     constructor() {

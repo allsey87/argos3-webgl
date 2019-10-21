@@ -84,6 +84,40 @@
         </joint>
       </joints>
     </prototype>
+    <prototype id="vehiclee" movable="true">
+      <body position="0.15387,0.131659,-8.12944e-08" orientation="0,0,0" />
+      <controller config="my_controller"/>
+      <links ref="base">
+        <link id="base" geometry="box" size="0.1,0.05,0.02" mass="1"
+              position="0,0,0.01" orientation="0,0,0" />
+        <link id="wheel_fl" geometry="cylinder" radius="0.02" height=".005"
+              mass=".05" position=".025,.025,0.02" orientation="0,0,-90" />
+        <link id="wheel_fr" geometry="cylinder" radius="0.02" height=".005"
+              mass=".05" position=".025,-.025,0.02" orientation="0,0,90" />
+        <link id="wheel_br" geometry="cylinder" radius="0.02" height=".005"
+              mass=".05" position="-.025,-.025,0.02" orientation="0,0,90" />
+        <link id="wheel_bl" geometry="cylinder" radius="0.02" height=".005"
+              mass=".05" position="-.025,.025,0.02" orientation="0,0,-90" />
+      </links>
+      <joints>
+        <joint id="base_wheel_fr" type="revolute" axis="0,0,1">
+          <parent link="base" position=".025,-.025,.01" orientation="0,0,90"/>
+          <child link="wheel_fr" position="0,0,0" orientation="0,0,0"/>
+        </joint>
+        <joint id="base_wheel_fl" type="revolute" axis="0,0,1">
+          <parent link="base" position=".025,.025,.01" orientation="0,0,-90"/>
+          <child link="wheel_fl" position="0,0,0" orientation="0,0,0"/>
+        </joint>
+        <joint id="base_wheel_br" type="revolute" axis="0,0,1">
+          <parent link="base" position="-.025,-.025,.01" orientation="0,0,90"/>
+          <child link="wheel_br" position="0,0,0" orientation="0,0,0"/>
+        </joint>
+        <joint id="base_wheel_bl" type="revolute" axis="0,0,1">
+          <parent link="base" position="-.025,.025,.01" orientation="0,0,-90"/>
+          <child link="wheel_bl" position="0,0,0" orientation="0,0,0"/>
+        </joint>
+      </joints>
+    </prototype>
   </arena>
 
   <!-- ******************* -->
@@ -118,7 +152,7 @@
         <placement idx="8" position="0,0,0.5" look_at="0.0,0.0,0.125" up="1,0,0" lens_focal_length="40"/>
       </camera>
     </qt-opengl-->
-    <!--webgl period=30 port="8000" start_browser="false" interactive="false" static="./frontend"/-->
+    <webgl period=30 port="8000" start_browser="false" interactive="false" static="./frontend"/>
   </visualization>
 
 </argos-configuration>

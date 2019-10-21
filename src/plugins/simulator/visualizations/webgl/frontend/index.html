@@ -16,6 +16,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.min.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/mode/lua/lua.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/addon/display/autorefresh.min.js"></script>
     <style>
             canvas {
                 width: 100%;
@@ -25,16 +26,32 @@
                 display: flex;
                 flex-direction: row;
             }
+            .CodeMirror {
+                border: 1px solid #eee;
+                height: auto;
+            }
         </style>
 </head>
 <body>
-    
+    <div id="my-id" class="uk-modal-full" uk-modal>
+        <div class="uk-modal-dialog">
+            <button class="uk-button uk-button-default" id="editor-save">Save</button>
+            <div class="editor">
+                <textarea id="code">
+                    
+                </textarea>
+            </div>
+            
+            <button class="uk-modal-close-default" type="button" uk-close></button>
+        </div>
+    </div>
     <div class="top">
         <input type="text" id="uri" class="uk-input"/>
         <button class="uk-button uk-button-default" id="connect">Connect</button>
         <button class="uk-button uk-button-default" id="sendStep" onclick="websocket.sendStep()">Step</button>
         <button class="uk-button uk-button-default" id="sendAuto" onclick="websocket.sendAuto()">Play</button>
         <button class="uk-button uk-button-default" id="sendPause" onclick="websocket.sendPause()">Pause</button>
+        <button class="uk-button uk-button-default" uk-toggle="target: #my-id" type="button">LUA</button>
         <a class="uk-button uk-button-default" href="#modal-center" uk-toggle>Help</a>
         <div id="modal-center" class="uk-flex-top" uk-modal>
             <div class="uk-modal-dialog uk-modal-body uk-margin-auto-vertical">
@@ -58,20 +75,15 @@
 
         </canvas>
     </div>
-    <div class="editor">
-        <ul class="uk-list uk-list-line" id="scripts-list">
-        </ul>
-        <div id="code">
-
-        </div>
-    </div>
-
 <script>
     let module = {};
 </script>
 <script>
-  var luaEditor = CodeMirror(document.getElementById('code'), {
+  var luaEditor = CodeMirror.fromTextArea(document.getElementById('code'), {
       mode: 'lua',
+      lineNumbers: true,
+      viewportMargin: Infinity,
+      autoRefresh: true,
   });
 </script>
 <script src="https://cdn.jsdelivr.net/gh/kvz/locutus/src/c/math/frexp.js"></script>
