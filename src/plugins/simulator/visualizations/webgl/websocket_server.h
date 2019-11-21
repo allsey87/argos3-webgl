@@ -69,9 +69,10 @@ public:
     void WriteSpawn(SPerSessionData* ps_session);
 
     void WriteLua(SPerSessionData* ps_session);
+    void UpdatedLua(SPerSessionData* ps_except);
 
 private:
-    void ReceivedMessage(SMessage *ps_msg);
+    void ReceivedMessage(SMessage *ps_msg, SPerSessionData* ps_sender);
     inline bool ShouldRecieveSpawn(SPerSessionData* ps_session) {
         return ps_session->m_uLastSpawnedNetId < m_pcVisualization->GetRootEntitiesCount();
     }

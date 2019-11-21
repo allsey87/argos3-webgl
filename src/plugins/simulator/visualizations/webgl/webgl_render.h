@@ -125,6 +125,7 @@ namespace argos {
    namespace EMessageType {
          const UInt8 SPAWN=0u;
          const UInt8 UPDATE=1u;
+         const UInt8 PLAYSTATE=2u;
       }
 
 }

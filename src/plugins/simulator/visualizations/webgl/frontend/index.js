@@ -189,7 +189,7 @@ function connect() {
         websocket.websocket.close();
     }
     OBJECTS.reset();
-    websocket = new Client(uri.value, load, OBJECTS.spawn, OBJECTS.updateCallback, editor.setScripts);
+    websocket = new Client(uri.value, {loadCallback: load, spawnCallback: OBJECTS.spawn, updateCallback: OBJECTS.updateCallback, luaCallback: editor.setScripts,});
 }
 
 document.getElementById("connect").addEventListener("click", connect);

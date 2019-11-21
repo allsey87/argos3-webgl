@@ -517,7 +517,7 @@ namespace argos {
          str_value += m_vecBuffer[i];
          ++i;
       }
-      if(m_vecBuffer[i] == '\0') {
+      if(i < Size()) {
          ++i;
       }
       m_vecBuffer.erase(m_vecBuffer.begin(), m_vecBuffer.begin() + i);

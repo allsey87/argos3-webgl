@@ -172,7 +172,7 @@ int CWebsocketServer::Callback(SPerSessionData *ps_session, lws_callback_reasons
             ps_session->m_psCurrentRecvMessage.type = lws_frame_is_binary(ps_session->m_psWSI)
                 ? LWS_WRITE_BINARY
                 : LWS_WRITE_TEXT;
-            ReceivedMessage(&ps_session->m_psCurrentRecvMessage);
+            ReceivedMessage(&ps_session->m_psCurrentRecvMessage, ps_session);
             ps_session->m_psCurrentRecvMessage.data->Clear();
         }
         break;
@@ -183,27 +183,55 @@ int CWebsocketServer::Callback(SPerSessionData *ps_session, lws_callback_reasons
     return 0;
 }
 
-void CWebsocketServer::ReceivedMessage(SMessage *ps_msg) {
-        lwsl_user("Received size: %lu\n", ps_msg->data->Size());
-        UInt8 unMessageType;
-        *(ps_msg->data) >> unMessageType;
-        switch(unMessageType) {
-            case EClientMessageType::PAUSE:
-                m_pcPalyState->Pause();
-            break;
-            case EClientMessageType::AUTO:
-                m_pcPalyState->Automatic();
-            break;
-            case EClientMessageType::STEP:
-                m_pcPalyState->Frame();
-            break;
-            case EClientMessageType::MOVE:
-                m_pcVisualization->RecievedMove(*(ps_msg->data));
-                break;
-        default:
-            lwsl_err("Unknown message type\n");
-            break;
+void CWebsocketServer::UpdatedLua(SPerSessionData* ps_except) {
+    for (TIterCleints tIter = m_vecSpawningClients.begin(); tIter != m_vecSpawningClients.end(); ++tIter) {
+        SPerSessionData* psSession = *tIter;
+        if (!psSession->m_bHasLua && psSession->m_uSent != 0) {
+            LOGERR << "[Websocket Server] Race condition on lua" << std::endl;
         }
+        psSession->m_bHasLua = false;
+    }
+    m_cRingBuffer.UpdatedLua(ps_except);
+}
+
+void CWebsocketServer::ReceivedMessage(SMessage *ps_msg, SPerSessionData* ps_sender) {
+        lwsl_user("Received size: %lu\n", ps_msg->data->Size());
+
+        UInt8 unMessageType;
+
+        if (ps_msg->type == LWS_WRITE_TEXT) {
+            std::string strMessage;
+            strMessage.reserve(ps_msg->data->Size());
+            (*ps_msg->data) >> strMessage;
+            size_t unSep = strMessage.find("///");
+            m_pcLuaContainer->UpdateScriptContent(strMessage.substr(0, unSep), strMessage.substr(unSep + 3));
+            UpdateLuaScripts();
+            UpdatedLua(ps_sender);
+            unMessageType = EClientMessageType::PAUSE;
+        } else {
+            *(ps_msg->data) >> unMessageType;
+            switch(unMessageType) {
+                case EClientMessageType::PAUSE:
+                    m_pcPalyState->Pause();
+                break;
+                case EClientMessageType::AUTO:
+                    m_pcPalyState->Automatic();
+                break;
+                case EClientMessageType::STEP:
+                    m_pcPalyState->Frame();
+                break;
+                case EClientMessageType::MOVE:
+                    m_pcVisualization->RecievedMove(*(ps_msg->data));
+                    break;
+            default:
+                lwsl_err("Unknown message type\n");
+                return;
+            }
+        }
+        CByteArray* pcMessage = new CByteArray();
+        *pcMessage << EMessageType::PLAYSTATE << unMessageType;
+        m_cRingBuffer.AddBinaryMessage(pcMessage);
+        lws_callback_on_writable_all_protocol(m_psContext, PROTOCOLS + 1);
     }
 
 CWebsocketServer::~CWebsocketServer() {
@@ -220,6 +248,7 @@ void CWebsocketServer::Prepare() {
 
 void CWebsocketServer::UpdateLuaScripts() {
     CByteArray* pcData = m_sLuaScripts.data;
+    pcData->Clear();
     (*pcData) << m_pcLuaContainer->GetJson();
     pcData->Resize(pcData->Size() - 1);
 }

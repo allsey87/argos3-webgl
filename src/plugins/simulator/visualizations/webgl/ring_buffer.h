@@ -21,6 +21,15 @@ namespace argos {
             lws_ring_destroy(m_psRingBuffer);
         }
 
+        void UpdatedLua(SPerSessionData* ps_except) {
+            for (TIterCleints tIter = m_vecClients.begin(); tIter != m_vecClients.end(); ++tIter) {
+                SPerSessionData* psSession = *tIter;
+                if (psSession != ps_except) {
+                    psSession->m_bHasLua = false;
+                }
+            }
+        }
+
         void EnsureRingSpace() {
             if (lws_ring_get_count_free_elements(m_psRingBuffer) == 0) {
                 // Kick lagging clients

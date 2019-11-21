@@ -8,11 +8,7 @@ class Editor {
 
     clicked() {
         if (this.currentScript) {
-            websocket.send({
-                "messageType": "luaScript",
-                "file": this.currentScript,
-                "content": this.codeMirror.getDoc().getValue()
-            });
+            websocket.send(`${this.currentScript}///${this.codeMirror.getDoc().getValue()}`);
         }
     }
 

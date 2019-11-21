@@ -5,7 +5,7 @@ const AUTO=1;
 const STEP=2;
 
 class Client {
-    constructor(uri, loadCallback, spawnCallback, updateCallback, luaCallback) {
+    constructor(uri, {loadCallback, spawnCallback, updateCallback, stateCallback, luaCallback}) {
         this.websocket = new WebSocket(uri, "spawn-objects" /* libwebsocket protocol */);
         this.websocket.onopen = this.onOpen.bind(this);
         this.websocket.onclose = this.onClose.bind(this);
@@ -21,6 +21,7 @@ class Client {
         this.spawnCallback = spawnCallback;
         this.updateCallback = updateCallback;
         this.luaCallback = luaCallback;
+        this.stateCallback = stateCallback;
         this.loadPromise = null;
     }
 
@@ -62,6 +63,9 @@ class Client {
                 case 1:
                     this.updateMessage(bin);
                     break;
+                case 2:
+                    this.playStateMessage(bin);
+                    break;
                 default:
                     console.warn("Recieved a unkown binary message type " + messageType);
             }
@@ -70,7 +74,10 @@ class Client {
 
     send(data) {
         if (data instanceof ArrayBuffer)
-            this.websocket.send(buffer);
+            this.websocket.send(data);
+        else if (typeof data == "string") {
+            this.websocket.send(data);
+        }
         else
             this.websocket.send(JSON.stringify(data));
     }
@@ -94,6 +101,11 @@ class Client {
         isAuto = false;
         updateButtonGray();
         this.websocket.send(new ArrayBuffer(1));
+    }
+
+    playStateMessage(bin) {
+        isAuto = bin.extractUint8() == AUTO;
+        updateButtonGray();
     }
 }
 
