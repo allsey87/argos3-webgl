@@ -8,7 +8,7 @@
 #include "webgl_render.h"
 #include <functional>
 #include "play_state.h"
-#include "ring_buffer.h"
+#include "simulation_state.h"
 
 namespace argos {
 
@@ -44,22 +44,23 @@ public:
     void Step();
 
     /**
-     * Send binary data
+     * Send update data
     */
-    void SendBinary(CByteArray* data);
+    void SendUpdate(UInt32 u_netId, CByteArray* c_data);
 
     /**
      * Send text data
      **/
-    void SendText(const std::string& send);
+    // void SendText(const std::string& send);
 
     int Callback(SPerSessionData *ps_wsi, lws_callback_reasons e_reason,
     UInt8* ch, size_t len);
 
     ~CWebsocketServer();
 
-    void AddSpawnMessage(std::unique_ptr<CByteArray> c_Data) {
-        m_vecSpawnMessages.push_back(std::move(c_Data));
+    void AddSpawnMessage(CByteArray* c_Data) {
+        m_cSimulationState.AddNewEntry();
+        m_vecSpawnMessages.push_back(std::make_shared<SMessage>(SMessage{std::unique_ptr<CByteArray>(c_Data), LWS_WRITE_TEXT}));
     }
 
     void Prepare();
@@ -68,16 +69,16 @@ public:
 
     void WriteSpawn(SPerSessionData* ps_session);
 
-    void WriteLua(SPerSessionData* ps_session);
-    void UpdatedLua(SPerSessionData* ps_except);
+    // void WriteLua(SPerSessionData* ps_session);
+    void UpdatedLua();
 
 private:
     void ReceivedMessage(SMessage *ps_msg, SPerSessionData* ps_sender);
     inline bool ShouldRecieveSpawn(SPerSessionData* ps_session) {
-        return ps_session->m_uLastSpawnedNetId < m_pcVisualization->GetRootEntitiesCount();
+        return ps_session->m_uLastSpawnedNetId < m_vecSpawnMessages.size();
     }
-    CByteArray* GetSpawnMsg(UInt32 u_id) {
-        return m_vecSpawnMessages[u_id].get();
+    std::shared_ptr<SMessage> GetSpawnMsg(UInt32 u_id) {
+        return m_vecSpawnMessages[u_id];
     }
 
 private:
@@ -88,14 +89,17 @@ private:
     bool m_bStop;
     CPlayState* m_pcPalyState;
     CWebGLRender* m_pcVisualization;
-    std::vector<std::unique_ptr<CByteArray>> m_vecSpawnMessages;
-    /*
-        New clients are not taken into account by the ring
-    */
-    std::vector<SPerSessionData*> m_vecSpawningClients;
-    CRingBuffer m_cRingBuffer;
+    std::vector<std::shared_ptr<SMessage>> m_vecSpawnMessages;
+
+    std::vector<SPerSessionData*> m_vecClients;
+    CSimulationState m_cSimulationState;
     CLuaControllers* m_pcLuaContainer;
-    SMessage m_sLuaScripts;
+    SEntry m_sLuaScriptsEntry;
+    
+    // shared_ptr here is just to be compatible with the session attribute
+    // of current message, they will never be replaced...
+    std::shared_ptr<SMessage> m_psPlayMsg;
+    std::shared_ptr<SMessage> m_psPauseMsg;
 };
 
 struct SDataPerVhost {

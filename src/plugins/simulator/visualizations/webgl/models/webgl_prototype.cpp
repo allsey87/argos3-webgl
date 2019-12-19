@@ -27,9 +27,7 @@ void CWebGLPrototype::UpdateInfo(CWebGLRender &c_visualization,
     std::pair<CVector3, CQuaternion> &ref = m_mapTransforms[c_entity.GetId()];
 
     if (ref.first != cBodyPosition || !(ref.second == cBodyOrientation)) {
-        LOG << "OLD POSITION" << ref.first << std::endl;
         ref.first = cBodyPosition;
-        LOG << "NEW POSITION" << ref.first << std::endl;
         ref.second = cBodyOrientation;
         bShouldSend = true;
         *pcData << (UInt8)1;
@@ -61,7 +59,7 @@ void CWebGLPrototype::UpdateInfo(CWebGLRender &c_visualization,
     }
 
     if (bShouldSend)
-        c_visualization.SendUpdates(pcData);
+        c_visualization.SendUpdates(pcData, c_entity);
 }
 
 void CWebGLPrototype::SpawnInfo(CWebGLRender &c_visualization,
@@ -136,7 +134,7 @@ void CWebGLPrototype::SpawnInfo(CWebGLRender &c_visualization,
     CByteArray* pcData = new CByteArray();
     (*pcData) << strJson;
     pcData->Resize(pcData->Size() - 1);
-    c_visualization.SendSpawn(std::move(std::unique_ptr<CByteArray>(pcData)), c_entity);
+    c_visualization.SendSpawn(pcData, c_entity);
 }
 
     class CWebGLPrototypeUpdateInfo: public CWebglUpdateInfo {

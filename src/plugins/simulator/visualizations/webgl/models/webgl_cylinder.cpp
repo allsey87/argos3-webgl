@@ -20,7 +20,7 @@ const UInt16 CYLINDER = 1;
             ref.first = cBodyPosition;
             ref.second = cBodyOrientation;
             WriteCord(*pcData, cBodyPosition, cBodyOrientation);
-            c_visualization.SendUpdates(pcData);
+            c_visualization.SendUpdates(pcData, c_entity);
         }
     }
 
@@ -49,7 +49,7 @@ const UInt16 CYLINDER = 1;
         (*pcData) << cJsonStream.str();
         pcData->Resize(pcData->Size() - 1);
         std::cout << "cylinder spawn message: " << cJsonStream.str() << std::endl;
-        c_visualization.SendSpawn(std::move(std::unique_ptr<CByteArray>(pcData)), c_entity);
+        c_visualization.SendSpawn(pcData, c_entity);
     }
 
     class CWebglCylinderUpdateInfo: public CWebglUpdateInfo {

@@ -7,15 +7,16 @@ namespace argos {
      * Returns true if it finished to send the whole message
     */
     bool WriteMessage(SPerSessionData* ps_session) {
-        SMessage sMessage = ps_session->m_psCurrentSendMessage;
-        size_t uToSend = sMessage.data->Size() - ps_session->m_uSent;
+        SMessage* psMessage = ps_session->m_psCurrentSendMessage.get();
+        size_t uToSend = psMessage->data->Size() - ps_session->m_uSent;
         // the LWS_PRE first bytes are for libwebsocket
         UInt8 buffer[uToSend + LWS_PRE];
-        UInt8* uSrc = sMessage.data->ToCArray() + ps_session->m_uSent;
+        UInt8* uSrc = psMessage->data->ToCArray() + ps_session->m_uSent;
         memcpy(buffer + LWS_PRE, uSrc, uToSend);
 
-        size_t uSent = static_cast<size_t>(lws_write(ps_session->m_psWSI, buffer + LWS_PRE, uToSend, sMessage.type));
+        size_t uSent = static_cast<size_t>(lws_write(ps_session->m_psWSI, buffer + LWS_PRE, uToSend, psMessage->type));
         if (uSent == uToSend) {
+            ps_session->m_psCurrentSendMessage.reset();
             ps_session->m_uSent = 0;
             return true;
         }
@@ -55,9 +56,4 @@ namespace argos {
                 }
             }
         }
-
-    void DestroyMessage(void *ps_message){
-        SMessage* psMessage = reinterpret_cast<SMessage*>(ps_message);
-        delete psMessage->data;
-    }
 }

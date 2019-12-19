@@ -25,7 +25,7 @@ const UInt16 BOX = 0;
             ref.second = cBodyOrientation;
             WriteCord(*pcData, cBodyPosition, cBodyOrientation);
             // !!! TODO sendposition or here?
-            c_visualization.SendUpdates(pcData);
+            c_visualization.SendUpdates(pcData, c_entity);
         }
     }
 
@@ -56,7 +56,7 @@ const UInt16 BOX = 0;
         (*pcData) << cJsonStream.str();
         pcData->Resize(pcData->Size() - 1);
         std::cout << "box spawn message: " << cJsonStream.str() << std::endl;
-        c_visualization.SendSpawn(std::move(std::unique_ptr<CByteArray>(pcData)), c_entity);
+        c_visualization.SendSpawn(pcData, c_entity);
     }
 
     class CWebglBoxUpdateInfo: public CWebglUpdateInfo {

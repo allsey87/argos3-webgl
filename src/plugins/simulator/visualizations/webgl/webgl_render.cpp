@@ -9,6 +9,7 @@
 #include <set>
 #include <map>
 #include <chrono>
+#include <memory>
 #include <argos3/core/simulator/entity/embodied_entity.h>
 #include <argos3/core/simulator/entity/composable_entity.h>
 #include <argos3/core/simulator/space/space.h>
@@ -47,9 +48,9 @@ namespace argos {
    /****************************************/
    /****************************************/
 
-   void CWebGLRender::SendSpawn(std::unique_ptr<CByteArray> c_Data, CComposableEntity& c_entity) {
+   void CWebGLRender::SendSpawn(CByteArray* c_Data, CComposableEntity& c_entity) {
       m_mapNetworkId[c_entity.GetId()] = m_mapNetworkId.size();
-      m_pcServer->AddSpawnMessage(std::move(c_Data));
+      m_pcServer->AddSpawnMessage(c_Data);
       m_vecEntites.push_back(&c_entity);
    }
 
@@ -119,8 +120,8 @@ namespace argos {
    /****************************************/
    /****************************************/
 
-   void CWebGLRender::SendUpdates(CByteArray* c_data) {// todo change
-      m_pcServer->SendBinary(c_data);
+   void CWebGLRender::SendUpdates(CByteArray* c_Data, CComposableEntity& c_entity) {// todo change
+      m_pcServer->SendUpdate(m_mapNetworkId[c_entity.GetId()], c_Data);
    }
 
    /****************************************/

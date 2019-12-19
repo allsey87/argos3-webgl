@@ -17,7 +17,8 @@ scene.background = new THREE.Color(0x454545);
 
 camera.position.z = 1;
 camera.position.y = 0;
-camera.position.set(0.24952068935534208, 0.11596185280276139, 0.16394337708001633) ; camera.rotation.set(-0.4302663515702581, 0.37962892503458523, 0.07864237505093132)
+camera.position.set(0.9933580715826136,0.4927882869044301, 2.209845773317536);
+camera.rotation.setFromVector3(new THREE.Vector3(-0.170027967880398, 0.03996200716897759, 0.001199698853828924));
 var uri = document.getElementById("uri");
 var websocket;
 var editor = new Editor(luaEditor, document.getElementById("editor-save"));

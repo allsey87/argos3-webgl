@@ -5,8 +5,9 @@
 set(ARGOS3_HEADERS_PLUGINS_SIMULATOR_VISUALIZATIONS_WEBGL
   webgl_render.h
   controllers_container.h
-  ring_buffer.h
+#  ring_buffer.h
   message.h
+  simulation_state.h
   models/webgl_box.h
   models/webgl_cylinder.h
   models/webgl_prototype.h

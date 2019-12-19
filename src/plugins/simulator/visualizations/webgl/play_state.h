@@ -35,6 +35,10 @@ namespace argos {
             --m_unFramesToPlay;
             return true;
         }
+
+        bool isPlaying() {
+            return m_bIsAutomatic;
+        }
     };
 } // namespace argos
 

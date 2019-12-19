@@ -64,9 +64,9 @@ namespace argos {
 
       virtual void Destroy();
 
-      virtual void SendUpdates(CByteArray* c_entity);
+      virtual void SendUpdates(CByteArray* c_Data, CComposableEntity& c_entity);
       
-      virtual void SendSpawn(std::unique_ptr<CByteArray> c_Data, CComposableEntity& c_entity);
+      virtual void SendSpawn(CByteArray* c_Data, CComposableEntity& c_entity);
 
       void RecievedMove(CByteArray& c_Data);
 
