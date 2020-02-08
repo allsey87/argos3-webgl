@@ -1,6 +1,7 @@
 #ifndef WEBSOCKET_SERVER
 #define WEBSOCKET_SERVER
 
+#include <mutex>
 #include <libwebsockets.h>
 #include <argos3/core/utility/datatypes/datatypes.h>
 #include <argos3/core/utility/datatypes/byte_array.h>
@@ -43,6 +44,9 @@ public:
      **/ 
     void Step();
 
+    void Stop() {
+        this->m_bStop = true;
+    }
     /**
      * Send update data
     */

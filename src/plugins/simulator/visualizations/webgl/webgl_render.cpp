@@ -10,6 +10,7 @@
 #include <map>
 #include <chrono>
 #include <memory>
+#include <thread>
 #include <argos3/core/simulator/entity/embodied_entity.h>
 #include <argos3/core/simulator/entity/composable_entity.h>
 #include <argos3/core/simulator/space/space.h>
@@ -90,30 +91,23 @@ namespace argos {
          ++itEntities) {
          CallEntityOperation<CWebglSpawnInfo, CWebGLRender, void>(*this, **itEntities);
       }
-      auto lastUpdate = std::chrono::steady_clock::now();
+      std::thread cWebScocketThread([&]() {
+         m_pcServer->Run();
+      });
       /* loop here until experiment done */
       while(!m_cSimulator.IsExperimentFinished()) {
          if (m_cPlayState.SimulationShouldAdvance()){
             m_cSimulator.UpdateSpace();
-            m_bDirty = true;
          }
-
-         if (m_bDirty) {
-            auto elapsed = std::chrono::steady_clock::now() - lastUpdate;
-            if (std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() > m_unPeriod) {
-               lastUpdate = std::chrono::steady_clock::now();
-               m_bDirty = false;
-               CEntity::TVector& vecEntities = cSpace.GetRootEntityVector();
-               for(CEntity::TVector::iterator itEntities = vecEntities.begin();
-                  itEntities != vecEntities.end();
-                  ++itEntities) {
-                  //
-                  CallEntityOperation<CWebglUpdateInfo, CWebGLRender, void>(*this, **itEntities);
-               }
-            }
+         CEntity::TVector& vecEntities = cSpace.GetRootEntityVector();
+         for(CEntity::TVector::iterator itEntities = vecEntities.begin();
+            itEntities != vecEntities.end();
+            ++itEntities) {
+            //
+            CallEntityOperation<CWebglUpdateInfo, CWebGLRender, void>(*this, **itEntities);
          }
-        m_pcServer->Step();
       }
+      m_pcServer->Stop();
       /* at this point we should gracefully close any connections */
    }
 
@@ -149,7 +143,7 @@ namespace argos {
       UInt32 uNetworkId;
       c_Data >> uNetworkId;
       std::string strId = m_vecEntites[uNetworkId]->GetId();
-      LOG << "MOVING ELEMENT: " << strId << std::endl;
+      // LOG << "MOVING ELEMENT: " << strId << std::endl;
       Real fX, fY, fZ;
       c_Data >> fX;
       c_Data >> fY;

@@ -63,7 +63,7 @@ CWebsocketServer::CWebsocketServer(std::string str_HostName, UInt16 un_Port,
     lws_set_log_level(LLL_USER | LLL_ERR | LLL_WARN | LLL_NOTICE, NULL);
     m_psContext = lws_create_context(&sInfo);
     if (!m_psContext) {
-        LOGERR << "Context creation failed" << std::endl;
+        // LOGERR << "Context creation failed" << std::endl;
     }
 
     SMessage* psMsg = m_psPlayMsg.get();
@@ -78,9 +78,10 @@ void CWebsocketServer::Run() {
     }
 }
 
-void CWebsocketServer::Step() { lws_service(m_psContext, 10); }
+void CWebsocketServer::Step() { lws_service(m_psContext, 0); lws_service(m_psContext, 0); }
 
 void CWebsocketServer::SendUpdate(UInt32 u_NetId, CByteArray* c_data) {
+    // TODO lock
     m_cSimulationState.UpdateVersion(u_NetId, new SMessage{std::unique_ptr<CByteArray>(c_data), LWS_WRITE_BINARY});
     // lws_cancel_service(m_psContext);
     lws_callback_on_writable_all_protocol(m_psContext, PROTOCOLS + 1);
@@ -150,8 +151,6 @@ int CWebsocketServer::Callback(SPerSessionData *ps_session, lws_callback_reasons
                 ps_session->m_psCurrentSendMessage = m_sLuaScriptsEntry.m_psMessage;
                 WriteMessage(ps_session);
             } else {
-                // here the PRIORITY is unfair, if multiple objects get updated too much,
-                // the lowest id of them will not let time for others to get updated
                 for (UInt32 i = ps_session->m_uNextUpdateId; i < ps_session->m_vecUpdateVersions.size(); ++i) {
                     if (ps_session->m_vecUpdateVersions[i] != m_cSimulationState.GetLastVersionValue(i)) {
                         ps_session->m_vecUpdateVersions[i] = m_cSimulationState.GetLastVersionValue(i);
@@ -191,7 +190,7 @@ int CWebsocketServer::Callback(SPerSessionData *ps_session, lws_callback_reasons
         }
         break;
     default:
-        LOGERR << "[LWS] Unhandled case reason=" << e_reason << std::endl;
+        // LOGERR << "[LWS] Unhandled case reason=" << e_reason << std::endl;
         break;
     }
     return 0;
@@ -274,7 +273,6 @@ int my_callback(lws *ps_wsi, enum lws_callback_reasons e_reason, void *user,
         ps_vhd->server = reinterpret_cast<CWebsocketServer *>(
             lws_context_user(ps_vhd->context));
         ps_vhd->server->Prepare();
-        LOG << ps_vhd << std::endl;
     } else {
         SDataPerVhost *ps_vhd =
             reinterpret_cast<SDataPerVhost *>(lws_protocol_vh_priv_get(

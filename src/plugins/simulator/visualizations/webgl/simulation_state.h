@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <memory>
+#include <mutex>
 #include <argos3/core/utility/datatypes/datatypes.h>
 #include "message.h"
 
@@ -19,22 +20,27 @@ namespace argos {
     private:
         // id is implicit and = index
         std::vector<SEntry> m_vecEntries;
+        std::mutex m_cMutex;
     public:
         void UpdateVersion(UInt32 u_id, SMessage* ps_message) {
+            std::lock_guard<std::mutex> cSync(m_cMutex);
             m_vecEntries[u_id].m_psMessage = std::shared_ptr<SMessage>(ps_message);
             ++(m_vecEntries[u_id].m_uVersion);
         }
 
         UInt32 GetLastVersionValue(UInt32 u_id) {
-            std::cout << "Last version of " << u_id << " is " << m_vecEntries[u_id].m_uVersion << std::endl;
+            std::lock_guard<std::mutex> cSync(m_cMutex);
+            // std::cout << "Last version of " << u_id << " is " << m_vecEntries[u_id].m_uVersion << std::endl;
             return m_vecEntries[u_id].m_uVersion;
         }
 
         std::shared_ptr<SMessage> GetLastVersionMessage(UInt32 u_id) {
+            std::lock_guard<std::mutex> cSync(m_cMutex);
             return m_vecEntries[u_id].m_psMessage;
         }
         // 0 should also be the version for the sperssiondata vector
         void AddNewEntry() {
+            std::lock_guard<std::mutex> cSync(m_cMutex);
             m_vecEntries.push_back(std::move(SEntry{0, std::shared_ptr<SMessage>(nullptr)}));
         }
     };
