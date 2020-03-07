@@ -60,6 +60,9 @@ void CWebGLPrototype::UpdateInfo(CWebGLRender &c_visualization,
 
     if (bShouldSend)
         c_visualization.SendUpdates(pcData, c_entity);
+    else {
+        delete pcData;
+    }
 }
 
 void CWebGLPrototype::SpawnInfo(CWebGLRender &c_visualization,

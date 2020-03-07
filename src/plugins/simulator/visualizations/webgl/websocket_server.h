@@ -44,6 +44,7 @@ public:
      **/ 
     void Step();
 
+    void CreateContext();
     void Stop() {
         this->m_bStop = true;
     }
@@ -64,7 +65,7 @@ public:
 
     void AddSpawnMessage(CByteArray* c_Data) {
         m_cSimulationState.AddNewEntry();
-        m_vecSpawnMessages.push_back(std::make_shared<SMessage>(SMessage{std::unique_ptr<CByteArray>(c_Data), LWS_WRITE_TEXT}));
+        m_vecSpawnMessages.push_back(std::make_shared<SMessage>(c_Data, LWS_WRITE_TEXT));
     }
 
     void Prepare();
@@ -90,7 +91,7 @@ private:
     std::string m_strStatic;
     UInt16 m_unPort;
     struct lws_context *m_psContext;
-    bool m_bStop;
+    bool m_bStop = false;
     CPlayState* m_pcPalyState;
     CWebGLRender* m_pcVisualization;
     std::vector<std::shared_ptr<SMessage>> m_vecSpawnMessages;

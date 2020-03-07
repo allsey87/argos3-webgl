@@ -12,8 +12,7 @@ const UInt16 BOX = 0;
     }
 
     void CWebGLBox::UpdateInfo(CWebGLRender& c_visualization, CBoxEntity& c_entity) {
-        CByteArray* pcData = new CByteArray();
-        *pcData << EMessageType::UPDATE << c_visualization.getNetworkId(c_entity.GetId());
+
 
         CEmbodiedEntity& cBody = c_entity.GetComponent<CEmbodiedEntity>("body");
         const CVector3& cBodyPosition = cBody.GetOriginAnchor().Position;
@@ -23,8 +22,10 @@ const UInt16 BOX = 0;
         if (ref.first != cBodyPosition || !(ref.second == cBodyOrientation)) {
             ref.first = cBodyPosition;
             ref.second = cBodyOrientation;
+
+            CByteArray* pcData = new CByteArray();
+            *pcData << EMessageType::UPDATE << c_visualization.getNetworkId(c_entity.GetId());
             WriteCord(*pcData, cBodyPosition, cBodyOrientation);
-            // !!! TODO sendposition or here?
             c_visualization.SendUpdates(pcData, c_entity);
         }
     }

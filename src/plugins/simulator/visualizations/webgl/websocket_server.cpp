@@ -48,28 +48,9 @@ CWebsocketServer::CWebsocketServer(std::string str_HostName, UInt16 un_Port,
     m_pcPalyState(pc_paly_state), m_pcVisualization(pc_visualization),
     m_pcLuaContainer(pc_LuaContainer),
     m_sLuaScriptsEntry{0},
-    m_psPlayMsg(std::make_shared<SMessage>(SMessage{std::make_unique<CByteArray>(), LWS_WRITE_BINARY})),
-    m_psPauseMsg(std::make_shared<SMessage>(SMessage{std::make_unique<CByteArray>(), LWS_WRITE_BINARY}))
+    m_psPlayMsg(std::make_shared<SMessage>(LWS_WRITE_BINARY)),
+    m_psPauseMsg(std::make_shared<SMessage>(LWS_WRITE_BINARY))
     {
-    struct lws_context_creation_info sInfo;
-    memset(&sInfo, 0, sizeof sInfo);
-    MOUNT_SETTINGS.origin = m_strStatic.c_str();
-    sInfo.mounts = &MOUNT_SETTINGS;
-    sInfo.vhost_name = m_strHostName.c_str();
-    sInfo.port = un_Port;
-    sInfo.protocols = PROTOCOLS;
-    sInfo.user = reinterpret_cast<void *>(this);
-    sInfo.headers = &ACCESS_CONTROL_REQUEST_HEADERS;
-    lws_set_log_level(LLL_USER | LLL_ERR | LLL_WARN | LLL_NOTICE, NULL);
-    m_psContext = lws_create_context(&sInfo);
-    if (!m_psContext) {
-        // LOGERR << "Context creation failed" << std::endl;
-    }
-
-    SMessage* psMsg = m_psPlayMsg.get();
-    *(psMsg->data) << EMessageType::PLAYSTATE << EClientMessageType::AUTO;
-    psMsg = m_psPauseMsg.get();
-    *(psMsg->data) << EMessageType::PLAYSTATE << EClientMessageType::PAUSE;
 }
 
 void CWebsocketServer::Run() {
@@ -82,9 +63,9 @@ void CWebsocketServer::Step() { lws_service(m_psContext, 0); lws_service(m_psCon
 
 void CWebsocketServer::SendUpdate(UInt32 u_NetId, CByteArray* c_data) {
     // TODO lock
-    m_cSimulationState.UpdateVersion(u_NetId, new SMessage{std::unique_ptr<CByteArray>(c_data), LWS_WRITE_BINARY});
-    // lws_cancel_service(m_psContext);
-    lws_callback_on_writable_all_protocol(m_psContext, PROTOCOLS + 1);
+    m_cSimulationState.UpdateVersion(u_NetId, new SMessage(c_data, LWS_WRITE_BINARY));
+    lws_cancel_service(m_psContext);
+    // lws_callback_on_writable_all_protocol(m_psContext, PROTOCOLS + 1);
 }
 
 /*void CWebsocketServer::SendText(const std::string& str_send) {
@@ -95,9 +76,10 @@ void CWebsocketServer::SendUpdate(UInt32 u_NetId, CByteArray* c_data) {
 void CWebsocketServer::WriteSpawn(SPerSessionData* ps_session) {
     if (WriteMessage(ps_session)) {
         ps_session->m_uLastSpawnedNetId += 1;
-        ps_session->m_vecUpdateVersions.push_back(0);
+        ps_session->m_sCPP->m_vecUpdateVersions.push_back(0);
     }
-    lws_callback_on_writable(ps_session->m_psWSI);
+    lws_cancel_service(m_psContext);
+    // lws_callback_on_writable(ps_session->m_psWSI);
 }
 
 /*void CWebsocketServer::WriteLua(SPerSessionData* ps_session) {
@@ -115,15 +97,17 @@ int CWebsocketServer::Callback(SPerSessionData *ps_session, lws_callback_reasons
         ps_session->m_uLastSpawnedNetId = 0; // maybe the already 0 at allocation
         ps_session->m_uLuaVersion = 0;
         ps_session->m_uSent = 0;
-        ps_session->m_psCurrentRecvMessage.data = std::make_unique<CByteArray>();
+        ps_session->m_psCurrentRecvMessage.data = new CByteArray();
         ps_session->m_bIsPlaying = false;
+        ps_session->m_sCPP = new SCPPPerSessionData;
         lws_callback_on_writable(ps_session->m_psWSI);
         break;
     case LWS_CALLBACK_PROTOCOL_DESTROY:
         m_bStop = true;
         break;
     case LWS_CALLBACK_CLOSED:
-        ps_session->m_psCurrentRecvMessage.data.reset(); // delete
+        delete ps_session->m_psCurrentRecvMessage.data; // delete
+        delete ps_session->m_sCPP;
 
         m_vecClients.erase(std::find(m_vecClients.begin(), m_vecClients.end(), ps_session));
 
@@ -131,40 +115,40 @@ int CWebsocketServer::Callback(SPerSessionData *ps_session, lws_callback_reasons
     case LWS_CALLBACK_SERVER_WRITEABLE:
         //// With this version: incrementation of spawned_id, lua_od should happen before starting to write
         /* Continue sending */
-        if (ps_session->m_psCurrentSendMessage.get()/*ps_session->m_uSent != 0*/) {/////////////////////////
+        if (ps_session->m_sCPP->m_psCurrentSendMessage.get()/*ps_session->m_uSent != 0*/) {/////////////////////////
             WriteMessage(ps_session);
         } else { /* Prepare a new Message */
             /* Lua files will have rare race conditions for multiple clients */
             if (ShouldRecieveSpawn(ps_session)) {
-                ps_session->m_psCurrentSendMessage = GetSpawnMsg(ps_session->m_uLastSpawnedNetId);
+                ps_session->m_sCPP->m_psCurrentSendMessage = GetSpawnMsg(ps_session->m_uLastSpawnedNetId);
                 WriteSpawn(ps_session);
             } else if (ps_session->m_bIsPlaying != m_pcPalyState->isPlaying()) {
                 if (ps_session->m_bIsPlaying) {
-                    ps_session->m_psCurrentSendMessage = m_psPlayMsg;
+                    ps_session->m_sCPP->m_psCurrentSendMessage = m_psPlayMsg;
                 } else {
-                    ps_session->m_psCurrentSendMessage = m_psPauseMsg;
+                    ps_session->m_sCPP->m_psCurrentSendMessage = m_psPauseMsg;
                 }
                 ps_session->m_bIsPlaying = !ps_session->m_bIsPlaying;
             }
             else if (ps_session->m_uLuaVersion < m_sLuaScriptsEntry.m_uVersion) {
                 ps_session->m_uLuaVersion = m_sLuaScriptsEntry.m_uVersion;
-                ps_session->m_psCurrentSendMessage = m_sLuaScriptsEntry.m_psMessage;
+                ps_session->m_sCPP->m_psCurrentSendMessage = m_sLuaScriptsEntry.m_psMessage;
                 WriteMessage(ps_session);
             } else {
-                for (UInt32 i = ps_session->m_uNextUpdateId; i < ps_session->m_vecUpdateVersions.size(); ++i) {
-                    if (ps_session->m_vecUpdateVersions[i] != m_cSimulationState.GetLastVersionValue(i)) {
-                        ps_session->m_vecUpdateVersions[i] = m_cSimulationState.GetLastVersionValue(i);
-                        ps_session->m_psCurrentSendMessage = m_cSimulationState.GetLastVersionMessage(i);
-                        ps_session->m_uNextUpdateId = (i + 1) % ps_session->m_vecUpdateVersions.size();
+                for (UInt32 i = ps_session->m_uNextUpdateId; i < ps_session->m_sCPP->m_vecUpdateVersions.size(); ++i) {
+                    if (ps_session->m_sCPP->m_vecUpdateVersions[i] != m_cSimulationState.GetLastVersionValue(i)) {
+                        ps_session->m_sCPP->m_vecUpdateVersions[i] = m_cSimulationState.GetLastVersionValue(i);
+                        ps_session->m_sCPP->m_psCurrentSendMessage = m_cSimulationState.GetLastVersionMessage(i);
+                        ps_session->m_uNextUpdateId = (i + 1) % ps_session->m_sCPP->m_vecUpdateVersions.size();
                         WriteMessage(ps_session);
                         return 0;
                     }
                 }
                 for (UInt32 i = 0; i < ps_session->m_uNextUpdateId; ++i) {
-                    if (ps_session->m_vecUpdateVersions[i] != m_cSimulationState.GetLastVersionValue(i)) {
-                        ps_session->m_vecUpdateVersions[i] = m_cSimulationState.GetLastVersionValue(i);
-                        ps_session->m_psCurrentSendMessage = m_cSimulationState.GetLastVersionMessage(i);
-                        ps_session->m_uNextUpdateId = (i + 1) % ps_session->m_vecUpdateVersions.size();
+                    if (ps_session->m_sCPP->m_vecUpdateVersions[i] != m_cSimulationState.GetLastVersionValue(i)) {
+                        ps_session->m_sCPP->m_vecUpdateVersions[i] = m_cSimulationState.GetLastVersionValue(i);
+                        ps_session->m_sCPP->m_psCurrentSendMessage = m_cSimulationState.GetLastVersionMessage(i);
+                        ps_session->m_uNextUpdateId = (i + 1) % ps_session->m_sCPP->m_vecUpdateVersions.size();
                         WriteMessage(ps_session);
                         return 0;
                     }
@@ -243,8 +227,31 @@ void CWebsocketServer::ReceivedMessage(SMessage *ps_msg, SPerSessionData* ps_sen
         lws_callback_on_writable_all_protocol(m_psContext, PROTOCOLS + 1);
     }
 
+void CWebsocketServer::CreateContext() {
+    struct lws_context_creation_info sInfo;
+    memset(&sInfo, 0, sizeof sInfo);
+    MOUNT_SETTINGS.origin = m_strStatic.c_str();
+    sInfo.mounts = &MOUNT_SETTINGS;
+    sInfo.vhost_name = m_strHostName.c_str();
+    sInfo.port = m_unPort;
+    sInfo.protocols = PROTOCOLS;
+    sInfo.user = reinterpret_cast<void *>(this);
+    sInfo.headers = &ACCESS_CONTROL_REQUEST_HEADERS;
+    lws_set_log_level(LLL_USER | LLL_ERR | LLL_WARN | LLL_NOTICE, NULL);
+    m_psContext = lws_create_context(&sInfo);
+    if (!m_psContext) {
+        // LOGERR << "Context creation failed" << std::endl;
+    }
+
+    SMessage* psMsg = m_psPlayMsg.get();
+    *(psMsg->data) << EMessageType::PLAYSTATE << EClientMessageType::AUTO;
+    psMsg = m_psPauseMsg.get();
+    *(psMsg->data) << EMessageType::PLAYSTATE << EClientMessageType::PAUSE;
+}
+
+
 CWebsocketServer::~CWebsocketServer() {
-    m_bStop = false;
+    m_bStop = true;
     if (m_psContext)
         lws_context_destroy(m_psContext);
 }
@@ -255,7 +262,7 @@ void CWebsocketServer::Prepare() {
 
 void CWebsocketServer::UpdateLuaScripts() {
     ++(m_sLuaScriptsEntry.m_uVersion);
-    m_sLuaScriptsEntry.m_psMessage = std::make_shared<SMessage>(SMessage{std::make_unique<CByteArray>(), LWS_WRITE_TEXT});
+    m_sLuaScriptsEntry.m_psMessage = std::make_shared<SMessage>(LWS_WRITE_TEXT);
     m_sLuaScriptsEntry.m_psMessage->data->operator<<(m_pcLuaContainer->GetJson());
     m_sLuaScriptsEntry.m_psMessage->data->Resize(m_sLuaScriptsEntry.m_psMessage->data->Size() - 1);
 }

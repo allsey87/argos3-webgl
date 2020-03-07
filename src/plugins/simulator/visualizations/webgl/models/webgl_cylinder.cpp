@@ -8,8 +8,6 @@ const UInt16 CYLINDER = 1;
     CWebGLCylinder::CWebGLCylinder(){}
 
     void CWebGLCylinder::UpdateInfo(CWebGLRender& c_visualization, CCylinderEntity& c_entity) {
-        CByteArray* pcData = new CByteArray();
-        *pcData << EMessageType::UPDATE << c_visualization.getNetworkId(c_entity.GetId());
 
         CEmbodiedEntity& cBody = c_entity.GetComponent<CEmbodiedEntity>("body");
         const CVector3& cBodyPosition = cBody.GetOriginAnchor().Position;
@@ -17,6 +15,8 @@ const UInt16 CYLINDER = 1;
         std::pair<CVector3, CQuaternion>& ref = m_mapTransforms[c_entity.GetId()];
 
         if (ref.first != cBodyPosition || !(ref.second == cBodyOrientation)) {
+            CByteArray* pcData = new CByteArray();
+            *pcData << EMessageType::UPDATE << c_visualization.getNetworkId(c_entity.GetId());
             ref.first = cBodyPosition;
             ref.second = cBodyOrientation;
             WriteCord(*pcData, cBodyPosition, cBodyOrientation);

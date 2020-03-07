@@ -11,7 +11,6 @@ namespace argos {
 
     struct SEntry {
         UInt32 m_uVersion;
-        // This is unnecessarily thread safe
         std::shared_ptr<SMessage> m_psMessage;
     };
 

@@ -91,9 +91,13 @@ namespace argos {
          ++itEntities) {
          CallEntityOperation<CWebglSpawnInfo, CWebGLRender, void>(*this, **itEntities);
       }
+      bool bGuard = false;
       std::thread cWebScocketThread([&]() {
+         m_pcServer->CreateContext();
+         bGuard = true;
          m_pcServer->Run();
       });
+      while (!bGuard) {}
       /* loop here until experiment done */
       while(!m_cSimulator.IsExperimentFinished()) {
          if (m_cPlayState.SimulationShouldAdvance()){
@@ -108,6 +112,7 @@ namespace argos {
          }
       }
       m_pcServer->Stop();
+      cWebScocketThread.join();
       /* at this point we should gracefully close any connections */
    }
 
