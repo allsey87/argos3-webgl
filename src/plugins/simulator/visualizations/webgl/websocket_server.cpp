@@ -240,7 +240,9 @@ void CWebsocketServer::CreateContext() {
     lws_set_log_level(LLL_USER | LLL_ERR | LLL_WARN | LLL_NOTICE, NULL);
     m_psContext = lws_create_context(&sInfo);
     if (!m_psContext) {
-        // LOGERR << "Context creation failed" << std::endl;
+	    std::cout << "???}}}Context creation failed" << std::endl;
+    } else {
+	    std::cout << "???}}}Context creation success" << std::endl;
     }
 
     SMessage* psMsg = m_psPlayMsg.get();
@@ -284,6 +286,7 @@ int my_callback(lws *ps_wsi, enum lws_callback_reasons e_reason, void *user,
         SDataPerVhost *ps_vhd =
             reinterpret_cast<SDataPerVhost *>(lws_protocol_vh_priv_get(
                 lws_get_vhost(ps_wsi), lws_get_protocol(ps_wsi)));
+	if (!ps_vhd) return 0;
         SPerSessionData *ps_SessionData =
             reinterpret_cast<SPerSessionData *>(user);
         if (e_reason == LWS_CALLBACK_ESTABLISHED) {
