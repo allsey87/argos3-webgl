@@ -84,13 +84,6 @@ namespace argos {
             m_cLuaContainer.AddController(pcLuaController);
          }
       }
-
-      CEntity::TVector& vecEntities = cSpace.GetRootEntityVector();
-      for(CEntity::TVector::iterator itEntities = vecEntities.begin();
-         itEntities != vecEntities.end();
-         ++itEntities) {
-         CallEntityOperation<CWebglSpawnInfo, CWebGLRender, void>(*this, **itEntities);
-      }
       bool bGuard = false;
       std::thread cWebScocketThread([&]() {
          m_pcServer->CreateContext();
@@ -98,6 +91,13 @@ namespace argos {
          m_pcServer->Run();
       });
       while (!bGuard) {}
+
+      CEntity::TVector& vecEntities = cSpace.GetRootEntityVector();
+      for(CEntity::TVector::iterator itEntities = vecEntities.begin();
+         itEntities != vecEntities.end();
+         ++itEntities) {
+         CallEntityOperation<CWebglSpawnInfo, CWebGLRender, void>(*this, **itEntities);
+      }
       /* loop here until experiment done */
       while(!m_cSimulator.IsExperimentFinished()) {
          if (m_cPlayState.SimulationShouldAdvance()){
