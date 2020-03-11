@@ -136,20 +136,22 @@ int CWebsocketServer::Callback(SPerSessionData *ps_session, lws_callback_reasons
                 WriteMessage(ps_session);
             } else {
                 for (UInt32 i = ps_session->m_uNextUpdateId; i < ps_session->m_sCPP->m_vecUpdateVersions.size(); ++i) {
-                    if (ps_session->m_sCPP->m_vecUpdateVersions[i] != m_cSimulationState.GetLastVersionValue(i)) {
-                        ps_session->m_sCPP->m_vecUpdateVersions[i] = m_cSimulationState.GetLastVersionValue(i);
-                        ps_session->m_sCPP->m_psCurrentSendMessage = m_cSimulationState.GetLastVersionMessage(i);
+                    UInt32& uVersion = ps_session->m_sCPP->m_vecUpdateVersions[i];
+                    SEntry sEntry = m_cSimulationState.GetLastVersionIfNewer(i, uVersion);
+                    if (sEntry.m_psMessage) {
+                        uVersion = sEntry.m_uVersion;
+                        ps_session->m_sCPP->m_psCurrentSendMessage = std::move(sEntry.m_psMessage);
                         ps_session->m_uNextUpdateId = (i + 1) % ps_session->m_sCPP->m_vecUpdateVersions.size();
-                        WriteMessage(ps_session);
                         return 0;
                     }
                 }
                 for (UInt32 i = 0; i < ps_session->m_uNextUpdateId; ++i) {
-                    if (ps_session->m_sCPP->m_vecUpdateVersions[i] != m_cSimulationState.GetLastVersionValue(i)) {
-                        ps_session->m_sCPP->m_vecUpdateVersions[i] = m_cSimulationState.GetLastVersionValue(i);
-                        ps_session->m_sCPP->m_psCurrentSendMessage = m_cSimulationState.GetLastVersionMessage(i);
+                    UInt32& uVersion = ps_session->m_sCPP->m_vecUpdateVersions[i];
+                    SEntry sEntry = m_cSimulationState.GetLastVersionIfNewer(i, uVersion);
+                    if (sEntry.m_psMessage) {
+                        uVersion = sEntry.m_uVersion;
+                        ps_session->m_sCPP->m_psCurrentSendMessage = std::move(sEntry.m_psMessage);
                         ps_session->m_uNextUpdateId = (i + 1) % ps_session->m_sCPP->m_vecUpdateVersions.size();
-                        WriteMessage(ps_session);
                         return 0;
                     }
                 }

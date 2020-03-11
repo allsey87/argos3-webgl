@@ -27,16 +27,21 @@ namespace argos {
             ++(m_vecEntries[u_id].m_uVersion);
         }
 
-        UInt32 GetLastVersionValue(UInt32 u_id) {
+        /**
+         * If the version is not newer the shared pointer is null
+         * to avoid creating an unused shared_ptr owning the message
+         * (std::shared_ptr<T>() is a constexpr)
+        */
+        SEntry GetLastVersionIfNewer(UInt32 u_id, UInt32 version) {
             std::lock_guard<std::mutex> cSync(m_cMutex);
-            // std::cout << "Last version of " << u_id << " is " << m_vecEntries[u_id].m_uVersion << std::endl;
-            return m_vecEntries[u_id].m_uVersion;
+            SEntry& sEntry = m_vecEntries[u_id];
+            UInt32 uVersion = sEntry.m_uVersion;
+            if (sEntry.m_uVersion > version) {
+                return sEntry;
+            }
+            return SEntry{uVersion, std::shared_ptr<SMessage>()};
         }
 
-        std::shared_ptr<SMessage> GetLastVersionMessage(UInt32 u_id) {
-            std::lock_guard<std::mutex> cSync(m_cMutex);
-            return m_vecEntries[u_id].m_psMessage;
-        }
         // 0 should also be the version for the sperssiondata vector
         void AddNewEntry() {
             std::lock_guard<std::mutex> cSync(m_cMutex);
