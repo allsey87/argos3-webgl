@@ -17,6 +17,7 @@ namespace argos {
       virtual ~CWebGLBox(){};
 
       virtual void UpdateInfo(CWebGLRender& c_visualization, CBoxEntity& c_entity);
+      virtual void UpdateInfoJSON(CWebGLRender& c_visualization, CBoxEntity& c_entity);
       virtual void SpawnInfo(CWebGLRender& c_visualization, CBoxEntity& c_entity);
 
    private:

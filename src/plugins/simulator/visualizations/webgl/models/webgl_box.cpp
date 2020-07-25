@@ -30,6 +30,32 @@ const UInt16 BOX = 0;
         }
     }
 
+    void CWebGLBox::UpdateInfoJSON(CWebGLRender& c_visualization, CBoxEntity& c_entity) {
+        CEmbodiedEntity& cBody = c_entity.GetComponent<CEmbodiedEntity>("body");
+        const CVector3& cBodyPosition = cBody.GetOriginAnchor().Position;
+        const CQuaternion& cBodyOrientation = cBody.GetOriginAnchor().Orientation;
+        std::pair<CVector3, CQuaternion>& ref = m_mapTransforms[c_entity.GetId()];
+
+        if (ref.first != cBodyPosition || !(ref.second == cBodyOrientation)) {
+            // Write json
+            std::ostringstream cJsonStream;
+            cJsonStream << R"""({"messageType": "update")""";
+            cJsonStream << ",\"id\":" << c_visualization.getNetworkId(c_entity.GetId()) << ',';
+            WriteCord(cJsonStream, cBodyPosition, cBodyOrientation);
+            cJsonStream << '}';
+
+            // update new position in m_mapTransforms
+            ref.first = cBodyPosition;
+            ref.second = cBodyOrientation;
+
+            // put json in bytearray
+            CByteArray* pcData = new CByteArray();
+            (*pcData) << cJsonStream.str(); // using EscapeChar may be necessary
+            pcData->Resize(pcData->Size() - 1);
+            c_visualization.SendUpdatesText(pcData, c_entity);
+        }
+    }
+
     /**
      * { "messageType": "spawn", "type": "cube", "scale" [1, 1, 1],
      * "position": [1, 1, 1], "rotation": [1, 1, 1] }
@@ -69,6 +95,15 @@ const UInt16 BOX = 0;
         }
     };
 
+    class CWebglBoxUpdateInfoText: public CWebglUpdateInfoText {
+    public:
+        void ApplyTo(CWebGLRender& c_visualization,
+                   CBoxEntity& c_entity) {
+            static CWebGLBox m_cModel;
+            m_cModel.UpdateInfoJSON(c_visualization, c_entity);
+        }
+    };
+
     class CWebglBoxSpawnInfo: public CWebglSpawnInfo {
     public:
         void ApplyTo(CWebGLRender& c_visualization,
@@ -79,5 +114,6 @@ const UInt16 BOX = 0;
     };
 
     REGISTER_WEBGL_ENTITY_OPERATION(CWebglUpdateInfo, CWebglBoxUpdateInfo, CBoxEntity);
+    REGISTER_WEBGL_ENTITY_OPERATION(CWebglUpdateInfoText, CWebglBoxUpdateInfoText, CBoxEntity);
     REGISTER_WEBGL_ENTITY_OPERATION(CWebglSpawnInfo, CWebglBoxSpawnInfo, CBoxEntity);
 }

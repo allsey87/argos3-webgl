@@ -31,6 +31,12 @@ namespace argos {
       virtual ~CWebglUpdateInfo(){};
    };
 
+   class CWebglUpdateInfoText: public CEntityOperation<CWebglUpdateInfoText, CWebGLRender, void> {
+   public:
+
+      virtual ~CWebglUpdateInfoText(){};
+   };
+
    class CWebglSpawnInfo: public CEntityOperation<CWebglSpawnInfo, CWebGLRender, void> {
    public:
 
@@ -65,6 +71,7 @@ namespace argos {
       virtual void Destroy();
 
       virtual void SendUpdates(CByteArray* c_Data, CComposableEntity& c_entity);
+      virtual void SendUpdatesText(CByteArray* c_Data, CComposableEntity& c_entity);
       
       virtual void SendSpawn(CByteArray* c_Data, CComposableEntity& c_entity);
 

@@ -68,6 +68,13 @@ void CWebsocketServer::SendUpdate(UInt32 u_NetId, CByteArray* c_data) {
     // lws_callback_on_writable_all_protocol(m_psContext, PROTOCOLS + 1);
 }
 
+void CWebsocketServer::SendUpdateText(UInt32 u_NetId, CByteArray* c_data) {
+    // TODO lock
+    m_cSimulationState.UpdateVersion(u_NetId, new SMessage(c_data, LWS_WRITE_TEXT));
+    lws_cancel_service(m_psContext);
+    // lws_callback_on_writable_all_protocol(m_psContext, PROTOCOLS + 1);
+}
+
 /*void CWebsocketServer::SendText(const std::string& str_send) {
     m_cRingBuffer.AddTextMessage(str_send);
     lws_cancel_service(m_psContext);

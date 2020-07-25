@@ -5,7 +5,9 @@ const AUTO=1;
 const STEP=2;
 
 class Client {
-    constructor(uri, {loadCallback, spawnCallback, updateCallback, stateCallback, luaCallback}) {
+    constructor(uri, {loadCallback, spawnCallback, updateCallback,
+                        stateCallback, luaCallback,
+                        updateTextCallback}) {
         this.websocket = new WebSocket(uri, "spawn-objects" /* libwebsocket protocol */);
         this.websocket.onopen = this.onOpen.bind(this);
         this.websocket.onclose = this.onClose.bind(this);
@@ -22,6 +24,7 @@ class Client {
         this.updateCallback = updateCallback;
         this.luaCallback = luaCallback;
         this.stateCallback = stateCallback;
+        this.updateTextCallback = updateTextCallback;
         this.loadPromise = null;
     }
 
@@ -42,6 +45,11 @@ class Client {
         this.updateCallback(id, bin);
     }
 
+    updateMessageText(obj) {
+        const id = obj.id;
+        this.updateTextCallback(id, obj);
+    }
+
     onMessage(e) {
         if (typeof e.data === "string") {
             const data = JSON.parse(e.data);
@@ -52,6 +60,9 @@ class Client {
                 case "luaScripts":
                     console.log("recieved lua scripts");
                     this.luaCallback(data.scripts);
+                    break;
+                case "update":
+                    this.updateMessageText(data);
                     break;
                 default:
                     console.warn("Recieved a unkown text message type " + data.messageType);

@@ -108,7 +108,8 @@ namespace argos {
             itEntities != vecEntities.end();
             ++itEntities) {
             //
-            CallEntityOperation<CWebglUpdateInfo, CWebGLRender, void>(*this, **itEntities);
+            // CallEntityOperation<CWebglUpdateInfo, CWebGLRender, void>(*this, **itEntities);
+            CallEntityOperation<CWebglUpdateInfoText, CWebGLRender, void>(*this, **itEntities);
          }
       }
       m_pcServer->Stop();
@@ -121,6 +122,13 @@ namespace argos {
 
    void CWebGLRender::SendUpdates(CByteArray* c_Data, CComposableEntity& c_entity) {// todo change
       m_pcServer->SendUpdate(m_mapNetworkId[c_entity.GetId()], c_Data);
+   }
+
+   /****************************************/
+   /****************************************/
+
+   void CWebGLRender::SendUpdatesText(CByteArray* c_Data, CComposableEntity& c_entity) {
+      m_pcServer->SendUpdateText(m_mapNetworkId[c_entity.GetId()], c_Data);
    }
 
    /****************************************/

@@ -17,6 +17,7 @@ namespace argos {
       virtual ~CWebGLCylinder(){};
 
       virtual void UpdateInfo(CWebGLRender& c_visualization, CCylinderEntity& c_entity);
+      virtual void UpdateInfoJSON(CWebGLRender& c_visualization, CCylinderEntity& c_entity);
       virtual void SpawnInfo(CWebGLRender& c_visualization, CCylinderEntity& c_entity);
 
    private:

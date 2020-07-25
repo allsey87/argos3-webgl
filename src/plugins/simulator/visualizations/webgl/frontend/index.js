@@ -89,6 +89,24 @@ class ObjectsContainer {
         updateMethod(networkId, bin);
     }
 
+    updateTextCallback = (networkId, obj) => {
+        const type = this.typeIds[networkId];
+        let updateMethod;
+        switch(type) {
+            case 0:
+            case 1:
+                updateMethod = this.basicUpdateTextCallback;
+                break;
+            case 3:
+                updateMethod = this.prototypeUpdateTextCallback;
+                break;
+            default:
+                console.warn("Unknown type id:" + type);
+                return;
+        }
+        updateMethod(networkId, obj);
+    }
+
     prototypeUpdateCallback = (networkId, bin) => {
         if (!!bin.extractUint8()) {
             this.basicUpdateCallback(networkId, bin);
@@ -100,8 +118,23 @@ class ObjectsContainer {
         }
     }
 
+    prototypeUpdateTextCallback = (networkId, data) => {
+        if (data.hasOwnProperty('position')) {
+            this.basicUpdateTextCallback(networkId, data);
+        }
+
+        const parent = this.objects[networkId];
+        for (let {id, ...coordinates} of data.children) {
+            setTransform(parent.children[id], coordinates);
+        }
+    }
+
     basicUpdateCallback = (networkId, bin) => {
         setTransformFromBin(this.objects[networkId], bin);
+    }
+
+    basicUpdateTextCallback = (networkId, obj) => {
+        setTransform(this.objects[networkId], obj);
     }
 }
 
@@ -190,7 +223,13 @@ function connect() {
         websocket.websocket.close();
     }
     OBJECTS.reset();
-    websocket = new Client(uri.value, {loadCallback: load, spawnCallback: OBJECTS.spawn, updateCallback: OBJECTS.updateCallback, luaCallback: editor.setScripts,});
+    websocket = new Client(uri.value, {
+        loadCallback: load,
+        spawnCallback: OBJECTS.spawn,
+        updateCallback: OBJECTS.updateCallback,
+        luaCallback: editor.setScripts,
+        updateTextCallback: OBJECTS.updateTextCallback
+    });
 }
 
 document.getElementById("connect").addEventListener("click", connect);

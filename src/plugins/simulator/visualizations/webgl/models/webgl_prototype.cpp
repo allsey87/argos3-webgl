@@ -65,6 +65,64 @@ void CWebGLPrototype::UpdateInfo(CWebGLRender &c_visualization,
     }
 }
 
+// update: {}
+void CWebGLPrototype::UpdateInfoJSON(CWebGLRender &c_visualization,
+                                 CPrototypeEntity &c_entity) {
+
+    std::ostringstream cJsonStream;
+    cJsonStream << R"""({"messageType": "update")""";
+    cJsonStream << ",\"id\":" << c_visualization.getNetworkId(c_entity.GetId()) << ',';
+    bool bShouldSend(false);
+    CEmbodiedEntity &cBody = c_entity.GetComponent<CEmbodiedEntity>("body");
+    const CVector3 &cBodyPosition = cBody.GetOriginAnchor().Position;
+    const CQuaternion &cBodyOrientation = cBody.GetOriginAnchor().Orientation;
+    std::pair<CVector3, CQuaternion> &ref = m_mapTransforms[c_entity.GetId()];
+
+    if (ref.first != cBodyPosition || !(ref.second == cBodyOrientation)) {
+        ref.first = cBodyPosition;
+        ref.second = cBodyOrientation;
+        bShouldSend = true;
+        WriteCord(cJsonStream, cBodyPosition, cBodyOrientation);
+    }
+
+    // TODO check same order guarantee?
+    CPrototypeLinkEntity::TVector &vecLinks =
+        c_entity.GetLinkEquippedEntity().GetLinks();
+    std::vector<std::pair<CVector3, CQuaternion>> &vecTransforms =
+        m_mapChildrenTransforms[c_entity.GetId()];
+    cJsonStream << ", \"children\":[";
+    bool first = true;
+    for (UInt8 childId = 0; childId < vecTransforms.size(); ++childId) {
+        CPrototypeLinkEntity *pcLink = vecLinks[childId];
+        /* Get the position of the link */
+        const CVector3 &cPosition = pcLink->GetAnchor().OffsetPosition;
+        /* Get the orientation of the link */
+        const CQuaternion &cOrientation = pcLink->GetAnchor().OffsetOrientation;
+
+        std::pair<CVector3, CQuaternion> & cChildPair = vecTransforms[childId];
+        if ( cChildPair.first != cPosition || !( cChildPair.second == cBodyOrientation)) {
+            cChildPair.first = cPosition;
+            cChildPair.second = cBodyOrientation;
+            bShouldSend = true;
+
+            if (!first) cJsonStream << ',';
+            else first = false;
+            cJsonStream << "{\"id\":";
+            cJsonStream << childId << ',';
+            WriteCord(cJsonStream, cPosition, cOrientation);
+            cJsonStream << '}';
+        }
+    }
+
+    if (bShouldSend) {
+        cJsonStream << "]}";
+        CByteArray* pcData = new CByteArray();
+        (*pcData) << cJsonStream.str();
+        pcData->Resize(pcData->Size() - 1);
+        c_visualization.SendUpdatesText(pcData, c_entity);
+    }
+}
+
 void CWebGLPrototype::SpawnInfo(CWebGLRender &c_visualization,
                                 CPrototypeEntity &c_entity) {
     std::ostringstream cJsonStream;
@@ -149,6 +207,15 @@ void CWebGLPrototype::SpawnInfo(CWebGLRender &c_visualization,
         }
     };
 
+    class CWebGLPrototypeUpdateInfoText: public CWebglUpdateInfoText {
+    public:
+        void ApplyTo(CWebGLRender& c_visualization,
+                   CPrototypeEntity& c_entity) {
+            static CWebGLPrototype m_cModel;
+            m_cModel.UpdateInfoJSON(c_visualization, c_entity);
+        }
+    };
+
     class CWebGLPrototypeSpawnInfo: public CWebglSpawnInfo {
     public:
         void ApplyTo(CWebGLRender& c_visualization,
@@ -159,5 +226,6 @@ void CWebGLPrototype::SpawnInfo(CWebGLRender &c_visualization,
     };
 
     REGISTER_WEBGL_ENTITY_OPERATION(CWebglUpdateInfo, CWebGLPrototypeUpdateInfo, CPrototypeEntity);
+    REGISTER_WEBGL_ENTITY_OPERATION(CWebglUpdateInfoText, CWebGLPrototypeUpdateInfoText, CPrototypeEntity);
     REGISTER_WEBGL_ENTITY_OPERATION(CWebglSpawnInfo, CWebGLPrototypeSpawnInfo, CPrototypeEntity);
 }

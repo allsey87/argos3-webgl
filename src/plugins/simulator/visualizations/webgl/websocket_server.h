@@ -52,6 +52,7 @@ public:
      * Send update data
     */
     void SendUpdate(UInt32 u_netId, CByteArray* c_data);
+    void SendUpdateText(UInt32 u_netId, CByteArray* c_data);
 
     /**
      * Send text data
