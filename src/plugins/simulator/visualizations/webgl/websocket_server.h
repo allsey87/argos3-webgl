@@ -16,12 +16,12 @@ namespace argos {
 int my_callback(struct lws *wsi, enum lws_callback_reasons reason,
                        void *user, void *in, size_t len);
 
-namespace EClientMessageType {
-    const UInt8 PAUSE=0;
-    const UInt8 AUTO=1;
-    const UInt8 STEP=2;
-    const UInt8 RESET=3;
-    const UInt8 MOVE=4;
+enum class EClientMessageType {
+    PAUSE=0,
+    AUTO=1,
+    STEP=2,
+    RESET=3,
+    MOVE=4
 };
 
 

@@ -30,7 +30,10 @@ static struct lws_http_mount MOUNT_SETTINGS = {
 };
 
 static struct lws_protocols PROTOCOLS[] = {
-    {"http", lws_callback_http_dummy, 0, 0}, MY_PROTOCOL, {NULL, NULL, 0, 0}};
+    {"http", lws_callback_http_dummy, 0, 0}, // serving static files
+    MY_PROTOCOL,
+    {NULL, NULL, 0, 0}
+};
 
 struct lws_protocol_vhost_options ACCESS_CONTROL_ALLOW_ORIGIN {
     nullptr, nullptr, "access-control-allow-origin:", "*"
@@ -201,7 +204,7 @@ void CWebsocketServer::UpdatedLua() {
 void CWebsocketServer::ReceivedMessage(SMessage *ps_msg, SPerSessionData* ps_sender) {
         lwsl_user("Received size: %lu\n", ps_msg->data->Size());
 
-        UInt8 unMessageType;
+        EClientMessageType unMessageType;
 
         if (ps_msg->type == LWS_WRITE_TEXT) {
             std::string strMessage;
@@ -214,7 +217,9 @@ void CWebsocketServer::ReceivedMessage(SMessage *ps_msg, SPerSessionData* ps_sen
             UpdatedLua();
             unMessageType = EClientMessageType::PAUSE;
         } else {
-            *(ps_msg->data) >> unMessageType;
+            UInt8 unMessageTypeTemp;
+            *(ps_msg->data) >> unMessageTypeTemp;
+            unMessageType = (EClientMessageType) unMessageTypeTemp;
             switch(unMessageType) {
                 case EClientMessageType::PAUSE:
                     m_pcPalyState->Pause();
@@ -249,15 +254,15 @@ void CWebsocketServer::CreateContext() {
     lws_set_log_level(LLL_USER | LLL_ERR | LLL_WARN | LLL_NOTICE, NULL);
     m_psContext = lws_create_context(&sInfo);
     if (!m_psContext) {
-	    std::cout << "???}}}Context creation failed" << std::endl;
+	    std::cout << "Context creation failed" << std::endl;
     } else {
-	    std::cout << "???}}}Context creation success" << std::endl;
+	    std::cout << "Context creation success" << std::endl;
     }
 
     SMessage* psMsg = m_psPlayMsg.get();
-    *(psMsg->data) << EMessageType::PLAYSTATE << EClientMessageType::AUTO;
+    *(psMsg->data) << EMessageType::PLAYSTATE << (UInt8) EClientMessageType::AUTO;
     psMsg = m_psPauseMsg.get();
-    *(psMsg->data) << EMessageType::PLAYSTATE << EClientMessageType::PAUSE;
+    *(psMsg->data) << EMessageType::PLAYSTATE << (UInt8) EClientMessageType::PAUSE;
 }
 
 
@@ -295,7 +300,7 @@ int my_callback(lws *ps_wsi, enum lws_callback_reasons e_reason, void *user,
         SDataPerVhost *ps_vhd =
             reinterpret_cast<SDataPerVhost *>(lws_protocol_vh_priv_get(
                 lws_get_vhost(ps_wsi), lws_get_protocol(ps_wsi)));
-	if (!ps_vhd) return 0;
+    if (!ps_vhd) return 0;
         SPerSessionData *ps_SessionData =
             reinterpret_cast<SPerSessionData *>(user);
         if (e_reason == LWS_CALLBACK_ESTABLISHED) {
