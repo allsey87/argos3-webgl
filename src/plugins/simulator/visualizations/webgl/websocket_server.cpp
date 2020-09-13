@@ -1,9 +1,6 @@
 #include "websocket_server.h"
 #include <algorithm>
 
-#define MY_PROTOCOL                                                            \
-    { "spawn-objects", my_callback, sizeof(SPerSessionData), 1024, 0, NULL, 0 }
-
 namespace argos {
 
 static const struct lws_protocol_vhost_options GLB_MIMETYPE = {
@@ -31,7 +28,7 @@ static struct lws_http_mount MOUNT_SETTINGS = {
 
 static struct lws_protocols PROTOCOLS[] = {
     {"http", lws_callback_http_dummy, 0, 0}, // serving static files
-    MY_PROTOCOL,
+    { "spawn-objects", ProtocolCallback, sizeof(SPerSessionData), 1024, 0, NULL, 0 },
     {NULL, NULL, 0, 0}
 };
 
@@ -65,38 +62,22 @@ void CWebsocketServer::Run() {
 void CWebsocketServer::Step() { lws_service(m_psContext, 0); lws_service(m_psContext, 0); }
 
 void CWebsocketServer::SendUpdate(UInt32 u_NetId, CByteArray* c_data) {
-    // TODO lock
     m_cSimulationState.UpdateVersion(u_NetId, new SMessage(c_data, LWS_WRITE_BINARY));
     lws_cancel_service(m_psContext);
-    // lws_callback_on_writable_all_protocol(m_psContext, PROTOCOLS + 1);
 }
 
 void CWebsocketServer::SendUpdateText(UInt32 u_NetId, CByteArray* c_data) {
-    // TODO lock
     m_cSimulationState.UpdateVersion(u_NetId, new SMessage(c_data, LWS_WRITE_TEXT));
     lws_cancel_service(m_psContext);
-    // lws_callback_on_writable_all_protocol(m_psContext, PROTOCOLS + 1);
 }
-
-/*void CWebsocketServer::SendText(const std::string& str_send) {
-    m_cRingBuffer.AddTextMessage(str_send);
-    lws_cancel_service(m_psContext);
-}*/
 
 void CWebsocketServer::WriteSpawn(SPerSessionData* ps_session) {
     if (WriteMessage(ps_session)) {
         ps_session->m_uLastSpawnedNetId += 1;
-        ps_session->m_sCPP->m_vecUpdateVersions.push_back(0);
+        ps_session->m_sCPP->UpdateVersions.push_back(0);
     }
     lws_cancel_service(m_psContext);
-    // lws_callback_on_writable(ps_session->m_psWSI);
 }
-
-/*void CWebsocketServer::WriteLua(SPerSessionData* ps_session) {
-    if (WriteMessage(ps_session)) ps_session->m_bHasLua = true;
-    lws_callback_on_writable(ps_session->m_psWSI);
-}*/
-
 
 int CWebsocketServer::Callback(SPerSessionData *ps_session, lws_callback_reasons e_reason,
             UInt8* un_bytes, size_t u_len) {
@@ -107,7 +88,7 @@ int CWebsocketServer::Callback(SPerSessionData *ps_session, lws_callback_reasons
         ps_session->m_uLastSpawnedNetId = 0; // maybe the already 0 at allocation
         ps_session->m_uLuaVersion = 0;
         ps_session->m_uSent = 0;
-        ps_session->m_psCurrentRecvMessage.data = new CByteArray();
+        ps_session->m_psCurrentRecvMessage.Data = new CByteArray();
         ps_session->m_bIsPlaying = false;
         ps_session->m_sCPP = new SCPPPerSessionData;
         lws_callback_on_writable(ps_session->m_psWSI);
@@ -116,52 +97,51 @@ int CWebsocketServer::Callback(SPerSessionData *ps_session, lws_callback_reasons
         m_bStop = true;
         break;
     case LWS_CALLBACK_CLOSED:
-        delete ps_session->m_psCurrentRecvMessage.data; // delete
+        delete ps_session->m_psCurrentRecvMessage.Data; // delete
         delete ps_session->m_sCPP;
 
         m_vecClients.erase(std::find(m_vecClients.begin(), m_vecClients.end(), ps_session));
 
         break;
     case LWS_CALLBACK_SERVER_WRITEABLE:
-        //// With this version: incrementation of spawned_id, lua_od should happen before starting to write
         /* Continue sending */
-        if (ps_session->m_sCPP->m_psCurrentSendMessage.get()/*ps_session->m_uSent != 0*/) {/////////////////////////
+        if (ps_session->m_sCPP->CurrentSendMessage.get()/*ps_session->m_uSent != 0*/) {/////////////////////////
             WriteMessage(ps_session);
         } else { /* Prepare a new Message */
             /* Lua files will have rare race conditions for multiple clients */
             if (ShouldRecieveSpawn(ps_session)) {
-                ps_session->m_sCPP->m_psCurrentSendMessage = GetSpawnMsg(ps_session->m_uLastSpawnedNetId);
+                ps_session->m_sCPP->CurrentSendMessage = GetSpawnMsg(ps_session->m_uLastSpawnedNetId);
                 WriteSpawn(ps_session);
             } else if (ps_session->m_bIsPlaying != m_pcPalyState->isPlaying()) {
                 if (ps_session->m_bIsPlaying) {
-                    ps_session->m_sCPP->m_psCurrentSendMessage = m_psPlayMsg;
+                    ps_session->m_sCPP->CurrentSendMessage = m_psPlayMsg;
                 } else {
-                    ps_session->m_sCPP->m_psCurrentSendMessage = m_psPauseMsg;
+                    ps_session->m_sCPP->CurrentSendMessage = m_psPauseMsg;
                 }
                 ps_session->m_bIsPlaying = !ps_session->m_bIsPlaying;
             }
             else if (ps_session->m_uLuaVersion < m_sLuaScriptsEntry.m_uVersion) {
                 ps_session->m_uLuaVersion = m_sLuaScriptsEntry.m_uVersion;
-                ps_session->m_sCPP->m_psCurrentSendMessage = m_sLuaScriptsEntry.m_psMessage;
+                ps_session->m_sCPP->CurrentSendMessage = m_sLuaScriptsEntry.m_psMessage;
                 WriteMessage(ps_session);
             } else {
-                for (UInt32 i = ps_session->m_uNextUpdateId; i < ps_session->m_sCPP->m_vecUpdateVersions.size(); ++i) {
-                    UInt32& uVersion = ps_session->m_sCPP->m_vecUpdateVersions[i];
+                for (UInt32 i = ps_session->m_uNextUpdateId; i < ps_session->m_sCPP->UpdateVersions.size(); ++i) {
+                    UInt32& uVersion = ps_session->m_sCPP->UpdateVersions[i];
                     SEntry sEntry = m_cSimulationState.GetLastVersionIfNewer(i, uVersion);
                     if (sEntry.m_psMessage) {
                         uVersion = sEntry.m_uVersion;
-                        ps_session->m_sCPP->m_psCurrentSendMessage = std::move(sEntry.m_psMessage);
-                        ps_session->m_uNextUpdateId = (i + 1) % ps_session->m_sCPP->m_vecUpdateVersions.size();
+                        ps_session->m_sCPP->CurrentSendMessage = std::move(sEntry.m_psMessage);
+                        ps_session->m_uNextUpdateId = (i + 1) % ps_session->m_sCPP->UpdateVersions.size();
                         return 0;
                     }
                 }
                 for (UInt32 i = 0; i < ps_session->m_uNextUpdateId; ++i) {
-                    UInt32& uVersion = ps_session->m_sCPP->m_vecUpdateVersions[i];
+                    UInt32& uVersion = ps_session->m_sCPP->UpdateVersions[i];
                     SEntry sEntry = m_cSimulationState.GetLastVersionIfNewer(i, uVersion);
                     if (sEntry.m_psMessage) {
                         uVersion = sEntry.m_uVersion;
-                        ps_session->m_sCPP->m_psCurrentSendMessage = std::move(sEntry.m_psMessage);
-                        ps_session->m_uNextUpdateId = (i + 1) % ps_session->m_sCPP->m_vecUpdateVersions.size();
+                        ps_session->m_sCPP->CurrentSendMessage = std::move(sEntry.m_psMessage);
+                        ps_session->m_uNextUpdateId = (i + 1) % ps_session->m_sCPP->UpdateVersions.size();
                         return 0;
                     }
                 }
@@ -169,47 +149,41 @@ int CWebsocketServer::Callback(SPerSessionData *ps_session, lws_callback_reasons
         }
         break;
     case LWS_CALLBACK_EVENT_WAIT_CANCELLED:
-        for (TIterCleints tIter = m_vecClients.begin(); tIter != m_vecClients.end(); ++tIter){
-            // TODO: if (ps_session.sumversion < m_cSimulationState.sumversion)
-            lws_callback_on_writable((*tIter)->m_psWSI);
+        for (TIterCleints itClient = m_vecClients.begin(); itClient != m_vecClients.end(); ++itClient){
+            lws_callback_on_writable((*itClient)->m_psWSI);
         }
         break;
     case LWS_CALLBACK_RECEIVE:
-        ps_session->m_psCurrentRecvMessage.data->AddBuffer(un_bytes, u_len);
+        ps_session->m_psCurrentRecvMessage.Data->AddBuffer(un_bytes, u_len);
 
         if (lws_is_final_fragment(ps_session->m_psWSI)) {
-            ps_session->m_psCurrentRecvMessage.type = lws_frame_is_binary(ps_session->m_psWSI)
+            ps_session->m_psCurrentRecvMessage.Type = lws_frame_is_binary(ps_session->m_psWSI)
                 ? LWS_WRITE_BINARY
                 : LWS_WRITE_TEXT;
             ReceivedMessage(&ps_session->m_psCurrentRecvMessage, ps_session);
-            ps_session->m_psCurrentRecvMessage.data->Clear();
+            ps_session->m_psCurrentRecvMessage.Data->Clear();
         }
         break;
     default:
-        // LOGERR << "[LWS] Unhandled case reason=" << e_reason << std::endl;
+        LOG << "[LWS] Unhandled case reason=" << e_reason << std::endl;
         break;
     }
     return 0;
 }
 
 void CWebsocketServer::UpdatedLua() {
-    // lws_cancel_service(m_psContext);
     lws_callback_on_writable_all_protocol(m_psContext, PROTOCOLS + 1);
-    // TODO check if lws_callback_on_writable is better
-    /*for (TIterCleints tIter = m_vecClients.begin(); tIter != m_vecClients.end(); ++tIter) {
-        lws_callback_on_writable((*tIter)->m_psWSI);
-    }*/
 }
 
 void CWebsocketServer::ReceivedMessage(SMessage *ps_msg, SPerSessionData* ps_sender) {
-        lwsl_user("Received size: %lu\n", ps_msg->data->Size());
+        lwsl_user("Received size: %lu\n", ps_msg->Data->Size());
 
         EClientMessageType unMessageType;
 
-        if (ps_msg->type == LWS_WRITE_TEXT) {
+        if (ps_msg->Type == LWS_WRITE_TEXT) {
             std::string strMessage;
-            strMessage.reserve(ps_msg->data->Size());
-            (*ps_msg->data) >> strMessage;
+            strMessage.reserve(ps_msg->Data->Size());
+            (*ps_msg->Data) >> strMessage;
             size_t unSep = strMessage.find("///");
             m_pcLuaContainer->UpdateScriptContent(strMessage.substr(0, unSep), strMessage.substr(unSep + 3));
             UpdateLuaScripts();
@@ -218,7 +192,7 @@ void CWebsocketServer::ReceivedMessage(SMessage *ps_msg, SPerSessionData* ps_sen
             unMessageType = EClientMessageType::PAUSE;
         } else {
             UInt8 unMessageTypeTemp;
-            *(ps_msg->data) >> unMessageTypeTemp;
+            *(ps_msg->Data) >> unMessageTypeTemp;
             unMessageType = (EClientMessageType) unMessageTypeTemp;
             switch(unMessageType) {
                 case EClientMessageType::PAUSE:
@@ -231,7 +205,7 @@ void CWebsocketServer::ReceivedMessage(SMessage *ps_msg, SPerSessionData* ps_sen
                     m_pcPalyState->Frame();
                 break;
                 case EClientMessageType::MOVE:
-                    m_pcVisualization->RecievedMove(*(ps_msg->data));
+                    m_pcVisualization->RecievedMove(*(ps_msg->Data));
                     break;
             default:
                 lwsl_err("Unknown message type\n");
@@ -260,9 +234,9 @@ void CWebsocketServer::CreateContext() {
     }
 
     SMessage* psMsg = m_psPlayMsg.get();
-    *(psMsg->data) << EMessageType::PLAYSTATE << (UInt8) EClientMessageType::AUTO;
+    *(psMsg->Data) << EMessageType::PLAYSTATE << (UInt8) EClientMessageType::AUTO;
     psMsg = m_psPauseMsg.get();
-    *(psMsg->data) << EMessageType::PLAYSTATE << (UInt8) EClientMessageType::PAUSE;
+    *(psMsg->Data) << EMessageType::PLAYSTATE << (UInt8) EClientMessageType::PAUSE;
 }
 
 
@@ -279,11 +253,11 @@ void CWebsocketServer::Prepare() {
 void CWebsocketServer::UpdateLuaScripts() {
     ++(m_sLuaScriptsEntry.m_uVersion);
     m_sLuaScriptsEntry.m_psMessage = std::make_shared<SMessage>(LWS_WRITE_TEXT);
-    m_sLuaScriptsEntry.m_psMessage->data->operator<<(m_pcLuaContainer->GetJson());
-    m_sLuaScriptsEntry.m_psMessage->data->Resize(m_sLuaScriptsEntry.m_psMessage->data->Size() - 1);
+    m_sLuaScriptsEntry.m_psMessage->Data->operator<<(m_pcLuaContainer->GetJson());
+    m_sLuaScriptsEntry.m_psMessage->Data->Resize(m_sLuaScriptsEntry.m_psMessage->Data->Size() - 1);
 }
 
-int my_callback(lws *ps_wsi, enum lws_callback_reasons e_reason, void *user,
+int ProtocolCallback(lws *ps_wsi, enum lws_callback_reasons e_reason, void *user,
                 void *in, size_t un_len) {
     if (e_reason == LWS_CALLBACK_PROTOCOL_INIT) {
         SDataPerVhost *ps_vhd =

@@ -13,7 +13,7 @@
 
 namespace argos {
 
-int my_callback(struct lws *wsi, enum lws_callback_reasons reason,
+int ProtocolCallback(struct lws *wsi, enum lws_callback_reasons reason,
                        void *user, void *in, size_t len);
 
 enum class EClientMessageType {

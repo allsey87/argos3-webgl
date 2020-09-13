@@ -190,7 +190,6 @@ void CWebGLPrototype::SpawnInfo(CWebGLRender &c_visualization,
     std::string strJson = cJsonStream.str();
     strJson.pop_back(); // remove leading comma
     strJson.append("]}");
-    std::cout << "Prototype spawn message: " << strJson << std::endl;
 
     CByteArray* pcData = new CByteArray();
     (*pcData) << strJson;

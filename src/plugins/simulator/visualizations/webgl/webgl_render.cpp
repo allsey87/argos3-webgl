@@ -107,9 +107,7 @@ namespace argos {
          for(CEntity::TVector::iterator itEntities = vecEntities.begin();
             itEntities != vecEntities.end();
             ++itEntities) {
-            //
-            // CallEntityOperation<CWebglUpdateInfo, CWebGLRender, void>(*this, **itEntities);
-            CallEntityOperation<CWebglUpdateInfoText, CWebGLRender, void>(*this, **itEntities);
+            CallEntityOperation<CWebglUpdateInfo, CWebGLRender, void>(*this, **itEntities);
          }
       }
       m_pcServer->Stop();

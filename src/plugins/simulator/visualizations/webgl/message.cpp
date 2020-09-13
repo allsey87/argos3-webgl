@@ -7,16 +7,16 @@ namespace argos {
      * Returns true if it finished to send the whole message
     */
     bool WriteMessage(SPerSessionData* ps_session) {
-        SMessage* psMessage = ps_session->m_sCPP->m_psCurrentSendMessage.get();
-        size_t uToSend = psMessage->data->Size() - ps_session->m_uSent;
+        SMessage* psMessage = ps_session->m_sCPP->CurrentSendMessage.get();
+        size_t uToSend = psMessage->Data->Size() - ps_session->m_uSent;
         // the LWS_PRE first bytes are for libwebsocket
         UInt8 buffer[uToSend + LWS_PRE];
-        UInt8* uSrc = psMessage->data->ToCArray() + ps_session->m_uSent;
+        UInt8* uSrc = psMessage->Data->ToCArray() + ps_session->m_uSent;
         memcpy(buffer + LWS_PRE, uSrc, uToSend);
 
-        size_t uSent = static_cast<size_t>(lws_write(ps_session->m_psWSI, buffer + LWS_PRE, uToSend, psMessage->type));
+        size_t uSent = static_cast<size_t>(lws_write(ps_session->m_psWSI, buffer + LWS_PRE, uToSend, psMessage->Type));
         if (uSent == uToSend) {
-            ps_session->m_sCPP->m_psCurrentSendMessage.reset();
+            ps_session->m_sCPP->CurrentSendMessage.reset();
             ps_session->m_uSent = 0;
             return true;
         }
@@ -24,35 +24,35 @@ namespace argos {
         return false;
     }
 
-    void EscapeChar(std::ostringstream& cStrStream, char c) {
+    void EscapeChar(std::ostringstream& str_stream, char c) {
         switch (c) {
             case '"':
-                cStrStream << "\\\"";
+                str_stream << "\\\"";
                 break;
             case '\\':
-                cStrStream << "\\\\";
+                str_stream << "\\\\";
                 break;
             case '\b':
-                cStrStream << "\\b";
+                str_stream << "\\b";
                 break;
             case '\f':
-                cStrStream << "\\f";
+                str_stream << "\\f";
                 break;
             case '\n':
-                cStrStream << "\\n";
+                str_stream << "\\n";
                 break;
             case '\r':
-                cStrStream << "\\r";
+                str_stream << "\\r";
                 break;
             case '\t':
-                cStrStream << "\\t";
+                str_stream << "\\t";
                 break;
             default:
                 if (('\x00' <= c && c <= '\x1f')) {
-                    cStrStream << std::hex << std::setw(4)
+                    str_stream << std::hex << std::setw(4)
                                 << std::setfill('0') << (int)c;
                 } else {
-                    cStrStream << c;
+                    str_stream << c;
                 }
             }
         }

@@ -75,7 +75,6 @@ const UInt16 CYLINDER = 1;
         CByteArray* pcData = new CByteArray();
         (*pcData) << cJsonStream.str();
         pcData->Resize(pcData->Size() - 1);
-        std::cout << "cylinder spawn message: " << cJsonStream.str() << std::endl;
         c_visualization.SendSpawn(pcData, c_entity);
     }
 

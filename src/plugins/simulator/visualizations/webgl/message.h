@@ -8,24 +8,26 @@
 
 namespace argos {
     struct SMessage {
-        CByteArray* data;
-        lws_write_protocol type;
+        CByteArray* Data;
+        lws_write_protocol Type;
 
+        // Will never be called because it is allocated by libwebsocket
+        // which is a c library
         SMessage() = delete;
         SMessage(const SMessage&) = delete;
-        SMessage(lws_write_protocol type)
-            : data(new CByteArray), type(type) {}
-        SMessage(CByteArray* data, lws_write_protocol type)
-            : data(data), type(type){}
+        SMessage(lws_write_protocol e_type)
+            : Data(new CByteArray), Type(e_type) {}
+        SMessage(CByteArray* data, lws_write_protocol e_type)
+            : Data(data), Type(e_type){}
 
         ~SMessage() {
-            delete data;
+            delete Data;
         }
     };
 
     struct SCPPPerSessionData {
-        std::shared_ptr<SMessage> m_psCurrentSendMessage;
-        std::vector<UInt32> m_vecUpdateVersions;
+        std::shared_ptr<SMessage> CurrentSendMessage;
+        std::vector<UInt32> UpdateVersions;
     };
 
     struct SPerSessionData {
@@ -46,7 +48,7 @@ namespace argos {
 
     bool WriteMessage(SPerSessionData* ps_session);
 
-    void EscapeChar(std::ostringstream& cStrStream, char c);
+    void EscapeChar(std::ostringstream& str_stream, char c);
 }
 
 #endif

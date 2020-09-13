@@ -17,11 +17,11 @@ const UInt16 BOX = 0;
         CEmbodiedEntity& cBody = c_entity.GetComponent<CEmbodiedEntity>("body");
         const CVector3& cBodyPosition = cBody.GetOriginAnchor().Position;
         const CQuaternion& cBodyOrientation = cBody.GetOriginAnchor().Orientation;
-        std::pair<CVector3, CQuaternion>& ref = m_mapTransforms[c_entity.GetId()];
+        std::pair<CVector3, CQuaternion>& sRef = m_mapTransforms[c_entity.GetId()];
 
-        if (ref.first != cBodyPosition || !(ref.second == cBodyOrientation)) {
-            ref.first = cBodyPosition;
-            ref.second = cBodyOrientation;
+        if (sRef.first != cBodyPosition || !(sRef.second == cBodyOrientation)) {
+            sRef.first = cBodyPosition;
+            sRef.second = cBodyOrientation;
 
             CByteArray* pcData = new CByteArray();
             *pcData << EMessageType::UPDATE << c_visualization.getNetworkId(c_entity.GetId());
@@ -34,9 +34,9 @@ const UInt16 BOX = 0;
         CEmbodiedEntity& cBody = c_entity.GetComponent<CEmbodiedEntity>("body");
         const CVector3& cBodyPosition = cBody.GetOriginAnchor().Position;
         const CQuaternion& cBodyOrientation = cBody.GetOriginAnchor().Orientation;
-        std::pair<CVector3, CQuaternion>& ref = m_mapTransforms[c_entity.GetId()];
+        std::pair<CVector3, CQuaternion>& sRef = m_mapTransforms[c_entity.GetId()];
 
-        if (ref.first != cBodyPosition || !(ref.second == cBodyOrientation)) {
+        if (sRef.first != cBodyPosition || !(sRef.second == cBodyOrientation)) {
             // Write json
             std::ostringstream cJsonStream;
             cJsonStream << R"""({"messageType": "update")""";
@@ -45,8 +45,8 @@ const UInt16 BOX = 0;
             cJsonStream << '}';
 
             // update new position in m_mapTransforms
-            ref.first = cBodyPosition;
-            ref.second = cBodyOrientation;
+            sRef.first = cBodyPosition;
+            sRef.second = cBodyOrientation;
 
             // put json in bytearray
             CByteArray* pcData = new CByteArray();
@@ -82,7 +82,6 @@ const UInt16 BOX = 0;
         CByteArray* pcData = new CByteArray();
         (*pcData) << cJsonStream.str();
         pcData->Resize(pcData->Size() - 1);
-        std::cout << "box spawn message: " << cJsonStream.str() << std::endl;
         c_visualization.SendSpawn(pcData, c_entity);
     }
 
