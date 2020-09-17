@@ -5,9 +5,8 @@ const AUTO=1;
 const STEP=2;
 
 class Client {
-    constructor(uri, {loadCallback, spawnCallback, updateCallback,
-                        stateCallback, luaCallback,
-                        updateTextCallback}) {
+    constructor(uri, {spawnCallback, updateCallback,
+                        stateCallback, luaCallback}) {
         this.websocket = new WebSocket(uri, "spawn-objects" /* libwebsocket protocol */);
         this.websocket.onopen = this.onOpen.bind(this);
         this.websocket.onclose = this.onClose.bind(this);
@@ -19,21 +18,18 @@ class Client {
         let url = new URL(uri);
         url.protocol = "http";
         this.url = url;
-        this.loadCallback = loadCallback;
         this.spawnCallback = spawnCallback;
         this.updateCallback = updateCallback;
         this.luaCallback = luaCallback;
         this.stateCallback = stateCallback;
-        this.updateTextCallback = updateTextCallback;
-        this.loadPromise = null;
     }
 
     onOpen(evt) {
-        console.log("open");
+        console.log("Websocket open");
     }
 
     onClose(evt) {
-        console.log("close");
+        console.log("Websocket close");
     }
 
     spawnMessage(data) {
@@ -43,11 +39,6 @@ class Client {
     updateMessage(bin) {
         const id = bin.extractUint32(0, false);
         this.updateCallback(id, bin);
-    }
-
-    updateMessageText(obj) {
-        const id = obj.id;
-        this.updateTextCallback(id, obj);
     }
 
     onMessage(e) {
@@ -60,9 +51,6 @@ class Client {
                 case "luaScripts":
                     console.log("recieved lua scripts");
                     this.luaCallback(data.scripts);
-                    break;
-                case "update":
-                    this.updateMessageText(data);
                     break;
                 default:
                     console.warn("Recieved a unkown text message type " + data.messageType);
@@ -84,11 +72,8 @@ class Client {
     }
 
     send(data) {
-        if (data instanceof ArrayBuffer)
+        if (data instanceof ArrayBuffer || typeof data == "string")
             this.websocket.send(data);
-        else if (typeof data == "string") {
-            this.websocket.send(data);
-        }
         else
             this.websocket.send(JSON.stringify(data));
     }
@@ -99,7 +84,7 @@ class Client {
         (new Uint8Array(data))[0] = STEP;
         this.websocket.send(data);
     }
-    
+
     sendAuto() {
         isAuto = true;
         updateButtonGray();
@@ -107,7 +92,7 @@ class Client {
         (new Uint8Array(data))[0] = AUTO;
         this.websocket.send(data);
     }
-    
+
     sendPause() {
         isAuto = false;
         updateButtonGray();

@@ -45,7 +45,8 @@ class MainLoop {
 class ObjectsContainer {
     constructor() {
         this.objects = [];
-        this.typeIds = [];
+        this.typesPromises = {};
+        this.types = [];
         this.populateScene();
     }
 
@@ -62,79 +63,44 @@ class ObjectsContainer {
         this.typeIds = [];
     }
 
-    spawn = (data) => {
-        const object = SPAWNS[data.type](data);
-        object.name = data.name;
-        this.typeIds.push(TYPES_IDS[data.type]);
-        object.netId = this.objects.length;
-        this.objects.push(object);
-        scene.add(object);
+    addType(type, model) {
+        this.typesPromises[type].resolver(model);
+    }
+
+    getLoadingPromise(type) {
+        if (!this.typesPromises.hasOwnProperty(type)) {
+            var script = document.createElement("script");
+            script.type = "text/javascript";
+            script.src = `/${type}-model.js`;
+            console.log(script.src);
+            document.body.appendChild(script);
+
+            let resolver;
+            let promise = new Promise((res) => resolver = res);
+            this.typesPromises[type] = {resolver, promise};
+            return promise;
+        }
+        return this.typesPromises[type].promise;
+    }
+
+    spawnCallback = (data) => {
+        const netId = this.objects.length;
+        this.objects.push(null);
+        this.getLoadingPromise(data.type).then(({spawn, update}) => {
+            const object = spawn(data);
+            object.netId = netId;
+            object.name = data.name;
+            object.argosUpdate = update;
+
+            this.objects[netId] = object;
+            scene.add(object);
+        });
     }
 
     updateCallback = (networkId, bin) => {
-        const type = this.typeIds[networkId];
-        let updateMethod;
-        switch(type) {
-            case 0: // BOX
-            case 1: // CYLINDER
-                updateMethod = this.basicUpdateCallback;
-                break;
-            case 3: // PROTOTYPE
-                updateMethod = this.prototypeUpdateCallback;
-                break;
-            default:
-                console.warn("Unknown type id:" + type);
-                return;
-        }
-        updateMethod(networkId, bin);
-    }
-
-    updateTextCallback = (networkId, obj) => {
-        const type = this.typeIds[networkId];
-        let updateMethod;
-        switch(type) {
-            case 0:
-            case 1:
-                updateMethod = this.basicUpdateTextCallback;
-                break;
-            case 3:
-                updateMethod = this.prototypeUpdateTextCallback;
-                break;
-            default:
-                console.warn("Unknown type id:" + type);
-                return;
-        }
-        updateMethod(networkId, obj);
-    }
-
-    prototypeUpdateCallback = (networkId, bin) => {
-        if (!!bin.extractUint8()) {
-            this.basicUpdateCallback(networkId, bin);
-        }
-        const parent = this.objects[networkId];
-        while (!bin.isConsumed()) {
-            const mesh = parent.children[bin.extractUint8()];
-            setTransformFromBin(mesh, bin);
-        }
-    }
-
-    prototypeUpdateTextCallback = (networkId, data) => {
-        if (data.hasOwnProperty('position')) {
-            this.basicUpdateTextCallback(networkId, data);
-        }
-
-        const parent = this.objects[networkId];
-        for (let {id, ...coordinates} of data.children) {
-            setTransform(parent.children[id], coordinates);
-        }
-    }
-
-    basicUpdateCallback = (networkId, bin) => {
-        setTransformFromBin(this.objects[networkId], bin);
-    }
-
-    basicUpdateTextCallback = (networkId, obj) => {
-        setTransform(this.objects[networkId], obj);
+        const object = this.objects[networkId];
+        // object is null if the corresponding script <type>-model.js is not loaded
+        if (object != null) object.argosUpdate(bin, object);
     }
 }
 
@@ -152,59 +118,6 @@ function load(e, name) {
     e.scene.position.set(0.4, 0, 0);
     scene.add(e.scene);
     obj = e.scene;
-}
-
-const TYPES_IDS = {
-    "box": 0,
-    "cylinder": 1,
-    "prototype": 3,
-}
-
-const PROTOTYPE_GEOMETRIES = {
-    "box": THREE.BoxGeometry,
-    "cylinder": THREE.CylinderGeometry,
-    "sphere": THREE.SphereGeometry
-};
-
-const SPAWNS = {
-    "box" : /* CUBE */ (data) => {
-        const geometry = new THREE.BoxGeometry(...data.scale);
-        const material = new THREE.MeshStandardMaterial({ color: 0xff00ff });
-
-        const mesh = new THREE.Mesh(geometry, material);
-        setTransform(mesh, data);
-        return mesh;
-    },
-    "cylinder" : /* CYLINDER */ (data) => {
-        const {scale} = data;
-        const geometry = new THREE.CylinderGeometry(scale[0], ...scale);
-        const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-
-
-        const mesh = new THREE.Mesh(geometry, material);
-        setTransform(mesh, data);
-        return mesh;
-    },
-    "prototype" : /* PROTOTYPE */ (data) => {
-
-        let parent = new THREE.Group();
-        setTransform(parent, data);
-
-        for (let child of data.children) {
-            const {type, scale, position, rotation, name} = child;
-            const geometry = new PROTOTYPE_GEOMETRIES[type](...scale);
-            const material = new THREE.MeshStandardMaterial({ color: 0x1af055 });
-
-            const mesh = new THREE.Mesh(geometry, material);
-            mesh.matrix.makeRotationFromEuler(new THREE.Euler(...rotation));
-            mesh.position.set(...position);
-            mesh.name = name;
-            parent.add(mesh);
-        }
-
-        parent.luaScript = data.luaScript;
-        return parent;
-    },
 }
 
 function setTransformFromBin(mesh, bin) {
@@ -225,10 +138,9 @@ function connect() {
     OBJECTS.reset();
     websocket = new Client(uri.value, {
         loadCallback: load,
-        spawnCallback: OBJECTS.spawn,
+        spawnCallback: OBJECTS.spawnCallback,
         updateCallback: OBJECTS.updateCallback,
-        luaCallback: editor.setScripts,
-        updateTextCallback: OBJECTS.updateTextCallback
+        luaCallback: editor.setScripts
     });
 }
 

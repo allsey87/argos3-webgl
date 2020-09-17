@@ -25,7 +25,7 @@ function onMouseDown(event) {
     }
 }
 
-function onMouseUp() {
+function onMouseUp(event) {
     if (event.button == 2) {
         event.preventDefault();
         isMousePressed = false;
@@ -180,6 +180,7 @@ class Selection {
 
                 writer.addUInt8(4);
 
+                console.log(this.selection.netId);
                 writer.addUInt32(this.selection.netId);
                 writer.addReal(inter.x);
                 writer.addReal(inter.y);
