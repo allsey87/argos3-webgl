@@ -165,7 +165,7 @@ int CWebsocketServer::Callback(SPerSessionData *ps_session, lws_callback_reasons
         }
         break;
     default:
-        LOG << "[LWS] Unhandled case reason=" << e_reason << std::endl;
+        std::cout << "[LWS] Unhandled case reason=" << e_reason << std::endl;
         break;
     }
     return 0;
