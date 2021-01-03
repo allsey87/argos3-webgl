@@ -109,6 +109,28 @@ namespace argos {
             ++itEntities) {
             CallEntityOperation<CWebglUpdateInfo, CWebGLRender, void>(*this, **itEntities);
          }
+
+         if (m_vecMoves.size()) {
+            std::lock_guard<std::mutex> cSync(m_cMovesMutex);
+            for (auto it = m_vecMoves.begin(); it != m_vecMoves.end(); ++it) {
+               std::string strId = m_vecEntites[it->first]->GetId();
+               CEntity* pcEntity = m_cSimulator.GetSpace().GetEntityMapPerId()[strId];
+
+               CEmbodiedEntity* pcBodyEntity = dynamic_cast<CEmbodiedEntity*>(pcEntity);
+               if (pcBodyEntity == NULL) {
+                  CComposableEntity* pcCompEntity = dynamic_cast<CComposableEntity*>(pcEntity);
+                  if(pcCompEntity != NULL && pcCompEntity->HasComponent("body")) {
+                        pcBodyEntity = &pcCompEntity->GetComponent<CEmbodiedEntity>("body");
+                  } else {
+                     continue;
+                  }
+               }
+
+               pcBodyEntity->MoveTo(it->second,
+                                    pcBodyEntity->GetOriginAnchor().Orientation);
+               m_bDirty = true;
+            }
+         }
       }
       m_pcServer->Stop();
       cWebScocketThread.join();
@@ -149,36 +171,10 @@ namespace argos {
    /****************************************/
    /****************************************/
 
-   void CWebGLRender::RecievedMove(CByteArray& c_Data) {
+   void CWebGLRender::RecievedMove(std::pair<UInt32, CVector3>& c_Data) {
       lwsl_user("MOVING ELEMENT\n");
-      UInt32 uNetworkId;
-      c_Data >> uNetworkId;
-      std::string strId = m_vecEntites[uNetworkId]->GetId();
-      // LOG << "MOVING ELEMENT: " << strId << std::endl;
-      Real fX, fY, fZ;
-      c_Data >> fX;
-      c_Data >> fY;
-      // TODO remove fZ because it does not need to
-      // be sent
-      c_Data >> fZ;
-
-      CVector3 cNewPos(fX, fY, fZ);
-      CEntity* pcEntity = m_cSimulator.GetSpace().GetEntityMapPerId()[strId];
-      CEmbodiedEntity* pcBodyEntity = dynamic_cast<CEmbodiedEntity*>(pcEntity);
-      if (pcBodyEntity == NULL) {
-         CComposableEntity* pcCompEntity = dynamic_cast<CComposableEntity*>(pcEntity);
-         if(pcCompEntity != NULL && pcCompEntity->HasComponent("body")) {
-               pcBodyEntity = &pcCompEntity->GetComponent<CEmbodiedEntity>("body");
-         } else {
-            return;
-         }
-      }
-
-      lwsl_user("(%f, %f, %f)", fX, fY, fZ);
-
-      pcBodyEntity->MoveTo(cNewPos,
-                             pcBodyEntity->GetOriginAnchor().Orientation);
-      m_bDirty = true;
+      std::lock_guard<std::mutex> cSync(m_cMovesMutex);
+      m_vecMoves.push_back(c_Data);
    }
 
    /****************************************/

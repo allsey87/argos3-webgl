@@ -205,7 +205,18 @@ void CWebsocketServer::ReceivedMessage(SMessage *ps_msg, SPerSessionData* ps_sen
                     m_pcPalyState->Frame();
                 break;
                 case EClientMessageType::MOVE:
-                    m_pcVisualization->RecievedMove(*(ps_msg->Data));
+                    {
+                        CByteArray& cData = *(ps_msg->Data);
+                        std::pair<UInt32, CVector3> sMove;
+                        cData >> sMove.first; // network id
+
+                        Real fX, fY, fZ;
+                        cData >> fX;
+                        cData >> fY;
+                        cData >> fZ;
+                        sMove.second = CVector3(fX, fY, fZ);
+                        m_pcVisualization->RecievedMove(sMove);
+                    }
                     break;
             default:
                 lwsl_err("Unknown message type\n");

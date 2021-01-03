@@ -13,6 +13,7 @@ namespace argos {
 
 #include <map>
 #include <memory>
+#include <mutex>
 #include <argos3/core/simulator/visualization/visualization.h>
 #include <argos3/core/simulator/entity/entity.h>
 #include <argos3/core/utility/math/vector3.h>
@@ -75,7 +76,7 @@ namespace argos {
       
       virtual void SendSpawn(CByteArray* c_Data, CComposableEntity& c_entity);
 
-      void RecievedMove(CByteArray& c_Data);
+      void RecievedMove(std::pair<UInt32, CVector3>& s_Move);
 
       networkId_t getNetworkId(const std::string& str_id) const {
          return m_mapNetworkId.at(str_id);
@@ -86,7 +87,7 @@ namespace argos {
       }
 
       void WriteSpawn(CByteArray&, networkId_t);
-      
+
    private:
       CSimulator& m_cSimulator;
 
@@ -94,6 +95,8 @@ namespace argos {
       std::string m_strStatic;
       std::vector<CComposableEntity*> m_vecEntites;
       std::map<std::string, networkId_t> m_mapNetworkId;
+      std::mutex m_cMovesMutex;
+      std::vector<std::pair<UInt32, CVector3>> m_vecMoves;
       UInt16 m_unPort;
       UInt16 m_unPeriod;
       bool m_bInteractive;
